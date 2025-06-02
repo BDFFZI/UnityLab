@@ -20,7 +20,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: 3DProjection
+  m_Name: Scanning
   m_Shader: {fileID: 4800000, guid: c29cc0b0bc0247a48bbd7ffc2a1caa24, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -90,5 +90,5 @@ Material:
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
     - _FlowSpeed: {r: 0, g: 1, b: 0, a: 0}
     - _InnerColor: {r: 0, g: 0.9529412, b: 1, a: 0}
-    - _RimColor: {r: 1, g: 0.8551116, b: 0, a: 0}
+    - _RimColor: {r: 0, g: 1, b: 0.39367294, a: 0}
   m_BuildTextureStacks: []
