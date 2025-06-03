@@ -14,4 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MarchingCubesBuilder
   resolution: 6
   buildType: 3
-  mesh: {fileID: 0}
+  mesh: {fileID: 10207, guid: 0000000000000000e000000000000000, type: 0}

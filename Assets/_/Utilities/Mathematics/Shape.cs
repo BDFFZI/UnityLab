@@ -7,7 +7,7 @@ public struct Line
 {
     public Line(Vector3 origin, Vector3 normal)
     {
-        if (Mathf.Abs(normal.magnitude - 1) > float.Epsilon)
+        if (Mathf.Abs(normal.magnitude - 1) > 0.0001f)
             throw new Exception("法线不是单位长度" + normal.magnitude);
 
         this.origin = origin;
