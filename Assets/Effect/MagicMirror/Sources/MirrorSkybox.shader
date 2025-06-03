@@ -1,16 +1,11 @@
 // Made with Amplify Shader Editor v1.9.8.1
 // Available at the Unity Asset Store - http://u3d.as/y3X 
-Shader "3DProjection"
+Shader "MirrorSkybox"
 {
 	Properties
 	{
 		[HideInInspector] _AlphaCutoff("Alpha Cutoff ", Range(0, 1)) = 0.5
 		[HideInInspector] _EmissionColor("Emission Color", Color) = (1,1,1,1)
-		_TextureSample0("Texture Sample 0", 2D) = "white" {}
-		[HDR]_Color0("Color 0", Color) = (0,0,0,0)
-		_RimMin("RimMin", Range( -1 , 1)) = 0
-		_RimMax("RimMax", Range( 0 , 2)) = 0
-		[HideInInspector] _texcoord( "", 2D ) = "white" {}
 
 
 		//_TessPhongStrength( "Tess Phong Strength", Range( 0, 1 ) ) = 0.5
@@ -36,9 +31,9 @@ Shader "3DProjection"
 
 		
 
-		Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Transparent" "Queue"="Transparent" "UniversalMaterialType"="Unlit" }
+		Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" "Queue"="AlphaTest+7" "UniversalMaterialType"="Unlit" }
 
-		Cull Back
+		Cull Front
 		AlphaToMask Off
 
 		
@@ -161,35 +156,42 @@ Shader "3DProjection"
 			Name "Forward"
 			Tags { "LightMode"="UniversalForwardOnly" }
 
-			Blend SrcAlpha OneMinusSrcAlpha, One OneMinusSrcAlpha
-			ZWrite Off
-			ZTest LEqual
+			Blend One Zero, One Zero
+			ZWrite On
+			ZTest Always
 			Offset 0 , 0
 			ColorMask RGBA
 
-			
+			Stencil
+			{
+				Ref 1
+				Comp Equal
+			}
 
 			HLSLPROGRAM
 
 			
-
-			#pragma shader_feature_local _RECEIVE_SHADOWS_OFF
-			#pragma multi_compile_instancing
-			#pragma instancing_options renderinglayer
-			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-			#pragma multi_compile_fog
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #pragma multi_compile_fragment _ALPHATEST_ON
+            #pragma shader_feature_local _RECEIVE_SHADOWS_OFF
+            #pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
+            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            #pragma multi_compile_fog
+            #define ASE_FOG 1
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
 			#pragma multi_compile_fragment _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
 
 			
+            #pragma multi_compile_fragment _ _WRITE_RENDERING_LAYERS
+		
 
 			#pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ LIGHTMAP_ON
@@ -202,16 +204,8 @@ Shader "3DProjection"
 			#define SHADERPASS SHADERPASS_UNLIT
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			
-			#if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -221,12 +215,10 @@ Shader "3DProjection"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
-			#if ASE_SRP_VERSION >=140010
-			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-			#endif
-		
 
 			
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
+		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DBuffer.hlsl"
@@ -239,9 +231,7 @@ Shader "3DProjection"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			#define ASE_NEEDS_FRAG_WORLD_VIEW_DIR
-			#define ASE_NEEDS_VERT_NORMAL
-
+			
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
 				#define ASE_SV_DEPTH SV_DepthLessEqual
@@ -279,18 +269,13 @@ Shader "3DProjection"
 				#if defined(DYNAMICLIGHTMAP_ON)
 					float2 dynamicLightmapUV : TEXCOORD5;
 				#endif
-				float4 ase_texcoord6 : TEXCOORD6;
-				float4 ase_texcoord7 : TEXCOORD7;
+				
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _TextureSample0_ST;
-			float4 _Color0;
-			float _RimMin;
-			float _RimMax;
-			#ifdef ASE_TESSELLATION
+						#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -300,8 +285,7 @@ Shader "3DProjection"
 			#endif
 			CBUFFER_END
 
-			sampler2D _TextureSample0;
-
+			
 
 			
 			PackedVaryings VertexFunction( Attributes input  )
@@ -311,14 +295,7 @@ Shader "3DProjection"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-				float3 ase_normalWS = TransformObjectToWorldNormal( input.normalOS );
-				output.ase_texcoord7.xyz = ase_normalWS;
 				
-				output.ase_texcoord6.xy = input.texcoord.xy;
-				
-				//setting value to unused interpolator channels and avoid initialization warnings
-				output.ase_texcoord6.zw = 0;
-				output.ase_texcoord7.w = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -477,18 +454,12 @@ Shader "3DProjection"
 					#endif
 				#endif
 
-				float2 uv_TextureSample0 = input.ase_texcoord6.xy * _TextureSample0_ST.xy + _TextureSample0_ST.zw;
-				
-				float3 ase_normalWS = input.ase_texcoord7.xyz;
-				float dotResult16 = dot( WorldViewDirection , ase_normalWS );
-				float temp_output_18_0 = ( 1.0 - saturate( dotResult16 ) );
-				float smoothstepResult29 = smoothstep( _RimMin , _RimMax , temp_output_18_0);
-				float RimLight20 = smoothstepResult29;
+				float3 temp_cast_0 = (0.0).xxx;
 				
 				float3 BakedAlbedo = 0;
 				float3 BakedEmission = 0;
-				float3 Color = ( tex2D( _TextureSample0, uv_TextureSample0 ).rgb * _Color0.rgb );
-				float Alpha = saturate( ( _Color0.a * RimLight20 ) );
+				float3 Color = temp_cast_0;
+				float Alpha = 1;
 				float AlphaClipThreshold = 0.5;
 				float AlphaClipThresholdShadow = 0.5;
 
@@ -554,16 +525,17 @@ Shader "3DProjection"
 			HLSLPROGRAM
 
 			
-
-			#pragma multi_compile_instancing
-			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #pragma multi_compile _ALPHATEST_ON
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            #define ASE_FOG 1
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
 
@@ -573,10 +545,6 @@ Shader "3DProjection"
 			#define SHADERPASS SHADERPASS_SHADOWCASTER
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -587,9 +555,7 @@ Shader "3DProjection"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			#define ASE_NEEDS_FRAG_WORLD_POSITION
-			#define ASE_NEEDS_VERT_NORMAL
-
+			
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
 				#define ASE_SV_DEPTH SV_DepthLessEqual
@@ -617,17 +583,13 @@ Shader "3DProjection"
 				#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR) && defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
 					float4 shadowCoord : TEXCOORD2;
 				#endif
-				float4 ase_texcoord3 : TEXCOORD3;
+				
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _TextureSample0_ST;
-			float4 _Color0;
-			float _RimMin;
-			float _RimMax;
-			#ifdef ASE_TESSELLATION
+						#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -650,12 +612,7 @@ Shader "3DProjection"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO( output );
 
-				float3 ase_normalWS = TransformObjectToWorldNormal( input.normalOS );
-				output.ase_texcoord3.xyz = ase_normalWS;
 				
-				
-				//setting value to unused interpolator channels and avoid initialization warnings
-				output.ase_texcoord3.w = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -810,16 +767,9 @@ Shader "3DProjection"
 					#endif
 				#endif
 
-				float3 ase_viewVectorWS = ( _WorldSpaceCameraPos.xyz - WorldPosition );
-				float3 ase_viewDirWS = normalize( ase_viewVectorWS );
-				float3 ase_normalWS = input.ase_texcoord3.xyz;
-				float dotResult16 = dot( ase_viewDirWS , ase_normalWS );
-				float temp_output_18_0 = ( 1.0 - saturate( dotResult16 ) );
-				float smoothstepResult29 = smoothstep( _RimMin , _RimMax , temp_output_18_0);
-				float RimLight20 = smoothstepResult29;
 				
 
-				float Alpha = saturate( ( _Color0.a * RimLight20 ) );
+				float Alpha = 1;
 				float AlphaClipThreshold = 0.5;
 				float AlphaClipThresholdShadow = 0.5;
 
@@ -862,25 +812,22 @@ Shader "3DProjection"
 			HLSLPROGRAM
 
 			
-
-			#pragma multi_compile_instancing
-			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #pragma multi_compile _ALPHATEST_ON
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            #define ASE_FOG 1
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma vertex vert
 			#pragma fragment frag
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -891,9 +838,7 @@ Shader "3DProjection"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			#define ASE_NEEDS_FRAG_WORLD_POSITION
-			#define ASE_NEEDS_VERT_NORMAL
-
+			
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
 				#define ASE_SV_DEPTH SV_DepthLessEqual
@@ -921,17 +866,13 @@ Shader "3DProjection"
 				#if defined(REQUIRES_VERTEX_SHADOW_COORD_INTERPOLATOR) && defined(ASE_NEEDS_FRAG_SHADOWCOORDS)
 					float4 shadowCoord : TEXCOORD2;
 				#endif
-				float4 ase_texcoord3 : TEXCOORD3;
+				
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _TextureSample0_ST;
-			float4 _Color0;
-			float _RimMin;
-			float _RimMax;
-			#ifdef ASE_TESSELLATION
+						#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -951,12 +892,7 @@ Shader "3DProjection"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-				float3 ase_normalWS = TransformObjectToWorldNormal( input.normalOS );
-				output.ase_texcoord3.xyz = ase_normalWS;
 				
-				
-				//setting value to unused interpolator channels and avoid initialization warnings
-				output.ase_texcoord3.w = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -1093,16 +1029,9 @@ Shader "3DProjection"
 					#endif
 				#endif
 
-				float3 ase_viewVectorWS = ( _WorldSpaceCameraPos.xyz - WorldPosition );
-				float3 ase_viewDirWS = normalize( ase_viewVectorWS );
-				float3 ase_normalWS = input.ase_texcoord3.xyz;
-				float dotResult16 = dot( ase_viewDirWS , ase_normalWS );
-				float temp_output_18_0 = ( 1.0 - saturate( dotResult16 ) );
-				float smoothstepResult29 = smoothstep( _RimMin , _RimMax , temp_output_18_0);
-				float RimLight20 = smoothstepResult29;
 				
 
-				float Alpha = saturate( ( _Color0.a * RimLight20 ) );
+				float Alpha = 1;
 				float AlphaClipThreshold = 0.5;
 
 				#ifdef ASE_DEPTH_WRITE_ON
@@ -1139,14 +1068,14 @@ Shader "3DProjection"
 			HLSLPROGRAM
 
 			
-
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #define ASE_FOG 1
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1156,16 +1085,8 @@ Shader "3DProjection"
 			#define SHADERPASS SHADERPASS_DEPTHONLY
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			
-			#if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1174,18 +1095,15 @@ Shader "3DProjection"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
-			#if ASE_SRP_VERSION >=140010
-			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-			#endif
-		
 
 			
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
+		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
 
-			#define ASE_NEEDS_VERT_NORMAL
-
+			
 
 			struct Attributes
 			{
@@ -1198,18 +1116,13 @@ Shader "3DProjection"
 			struct PackedVaryings
 			{
 				float4 positionCS : SV_POSITION;
-				float4 ase_texcoord : TEXCOORD0;
-				float4 ase_texcoord1 : TEXCOORD1;
+				
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _TextureSample0_ST;
-			float4 _Color0;
-			float _RimMin;
-			float _RimMax;
-			#ifdef ASE_TESSELLATION
+						#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -1240,15 +1153,7 @@ Shader "3DProjection"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-				float3 ase_positionWS = TransformObjectToWorld( ( input.positionOS ).xyz );
-				output.ase_texcoord.xyz = ase_positionWS;
-				float3 ase_normalWS = TransformObjectToWorldNormal( input.normalOS );
-				output.ase_texcoord1.xyz = ase_normalWS;
 				
-				
-				//setting value to unused interpolator channels and avoid initialization warnings
-				output.ase_texcoord.w = 0;
-				output.ase_texcoord1.w = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -1356,17 +1261,9 @@ Shader "3DProjection"
 			{
 				SurfaceDescription surfaceDescription = (SurfaceDescription)0;
 
-				float3 ase_positionWS = input.ase_texcoord.xyz;
-				float3 ase_viewVectorWS = ( _WorldSpaceCameraPos.xyz - ase_positionWS );
-				float3 ase_viewDirWS = normalize( ase_viewVectorWS );
-				float3 ase_normalWS = input.ase_texcoord1.xyz;
-				float dotResult16 = dot( ase_viewDirWS , ase_normalWS );
-				float temp_output_18_0 = ( 1.0 - saturate( dotResult16 ) );
-				float smoothstepResult29 = smoothstep( _RimMin , _RimMax , temp_output_18_0);
-				float RimLight20 = smoothstepResult29;
 				
 
-				surfaceDescription.Alpha = saturate( ( _Color0.a * RimLight20 ) );
+				surfaceDescription.Alpha = 1;
 				surfaceDescription.AlphaClipThreshold = 0.5;
 
 				#if _ALPHATEST_ON
@@ -1395,14 +1292,14 @@ Shader "3DProjection"
 			HLSLPROGRAM
 
 			
-
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #define ASE_FOG 1
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1413,16 +1310,8 @@ Shader "3DProjection"
 			#define SHADERPASS SHADERPASS_DEPTHONLY
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			
-			#if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1431,12 +1320,10 @@ Shader "3DProjection"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
-			#if ASE_SRP_VERSION >=140010
-			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-			#endif
-		
 
 			
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
+		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
@@ -1445,8 +1332,7 @@ Shader "3DProjection"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			#define ASE_NEEDS_VERT_NORMAL
-
+			
 
 			struct Attributes
 			{
@@ -1459,18 +1345,13 @@ Shader "3DProjection"
 			struct PackedVaryings
 			{
 				float4 positionCS : SV_POSITION;
-				float4 ase_texcoord : TEXCOORD0;
-				float4 ase_texcoord1 : TEXCOORD1;
+				
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _TextureSample0_ST;
-			float4 _Color0;
-			float _RimMin;
-			float _RimMax;
-			#ifdef ASE_TESSELLATION
+						#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -1500,15 +1381,7 @@ Shader "3DProjection"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
-				float3 ase_positionWS = TransformObjectToWorld( ( input.positionOS ).xyz );
-				output.ase_texcoord.xyz = ase_positionWS;
-				float3 ase_normalWS = TransformObjectToWorldNormal( input.normalOS );
-				output.ase_texcoord1.xyz = ase_normalWS;
 				
-				
-				//setting value to unused interpolator channels and avoid initialization warnings
-				output.ase_texcoord.w = 0;
-				output.ase_texcoord1.w = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -1614,17 +1487,9 @@ Shader "3DProjection"
 			{
 				SurfaceDescription surfaceDescription = (SurfaceDescription)0;
 
-				float3 ase_positionWS = input.ase_texcoord.xyz;
-				float3 ase_viewVectorWS = ( _WorldSpaceCameraPos.xyz - ase_positionWS );
-				float3 ase_viewDirWS = normalize( ase_viewVectorWS );
-				float3 ase_normalWS = input.ase_texcoord1.xyz;
-				float dotResult16 = dot( ase_viewDirWS , ase_normalWS );
-				float temp_output_18_0 = ( 1.0 - saturate( dotResult16 ) );
-				float smoothstepResult29 = smoothstep( _RimMin , _RimMax , temp_output_18_0);
-				float RimLight20 = smoothstepResult29;
 				
 
-				surfaceDescription.Alpha = saturate( ( _Color0.a * RimLight20 ) );
+				surfaceDescription.Alpha = 1;
 				surfaceDescription.AlphaClipThreshold = 0.5;
 
 				#if _ALPHATEST_ON
@@ -1657,20 +1522,23 @@ Shader "3DProjection"
 			HLSLPROGRAM
 
 			
-
-        	#pragma multi_compile_instancing
-        	#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-        	#define ASE_FOG 1
-        	#define _SURFACE_TYPE_TRANSPARENT 1
-        	#define ASE_VERSION 19801
-        	#define ASE_SRP_VERSION 140011
+            #pragma multi_compile _ALPHATEST_ON
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            #define ASE_FOG 1
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
         	#pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
 
 			
+            #pragma multi_compile_fragment _ _WRITE_RENDERING_LAYERS
+		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1682,16 +1550,8 @@ Shader "3DProjection"
 			#define SHADERPASS SHADERPASS_DEPTHNORMALSONLY
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			
-			#if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1700,12 +1560,10 @@ Shader "3DProjection"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
-			#if ASE_SRP_VERSION >=140010
-			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-			#endif
-		
 
 			
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
+		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
@@ -1714,9 +1572,7 @@ Shader "3DProjection"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			#define ASE_NEEDS_FRAG_WORLD_POSITION
-			#define ASE_NEEDS_FRAG_WORLD_NORMAL
-
+			
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
 				#define ASE_SV_DEPTH SV_DepthLessEqual
@@ -1746,11 +1602,7 @@ Shader "3DProjection"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-			float4 _TextureSample0_ST;
-			float4 _Color0;
-			float _RimMin;
-			float _RimMax;
-			#ifdef ASE_TESSELLATION
+						#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
 				float _TessMin;
@@ -1900,15 +1752,9 @@ Shader "3DProjection"
 				float4 ClipPos = input.clipPosV;
 				float4 ScreenPos = ComputeScreenPos( input.clipPosV );
 
-				float3 ase_viewVectorWS = ( _WorldSpaceCameraPos.xyz - WorldPosition );
-				float3 ase_viewDirWS = normalize( ase_viewVectorWS );
-				float dotResult16 = dot( ase_viewDirWS , WorldNormal );
-				float temp_output_18_0 = ( 1.0 - saturate( dotResult16 ) );
-				float smoothstepResult29 = smoothstep( _RimMin , _RimMax , temp_output_18_0);
-				float RimLight20 = smoothstepResult29;
 				
 
-				float Alpha = saturate( ( _Color0.a * RimLight20 ) );
+				float Alpha = 1;
 				float AlphaClipThreshold = 0.5;
 
 				#ifdef ASE_DEPTH_WRITE_ON
@@ -1956,29 +1802,9 @@ Shader "3DProjection"
 }
 /*ASEBEGIN
 Version=19801
-Node;AmplifyShaderEditor.WorldNormalVector;14;-1712,784;Inherit;False;False;1;0;FLOAT3;0,0,1;False;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
-Node;AmplifyShaderEditor.ViewDirInputsCoordNode;13;-1712,592;Inherit;False;World;False;0;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
-Node;AmplifyShaderEditor.DotProductOpNode;16;-1440,720;Inherit;False;2;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.SaturateNode;17;-1296,720;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.OneMinusNode;18;-1088,720;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;31;-1008,944;Inherit;False;Property;_RimMax;RimMax;3;0;Create;True;0;0;0;False;0;False;0;0;0;2;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;30;-1008,848;Inherit;False;Property;_RimMin;RimMin;2;0;Create;True;0;0;0;False;0;False;0;0;-1;1;0;1;FLOAT;0
-Node;AmplifyShaderEditor.SmoothstepOpNode;29;-704,720;Inherit;False;3;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RegisterLocalVarNode;20;-240,784;Inherit;False;RimLight;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.GetLocalVarNode;19;-592,352;Inherit;False;20;RimLight;1;0;OBJECT;;False;1;FLOAT;0
-Node;AmplifyShaderEditor.ColorNode;10;-640,128;Inherit;False;Property;_Color0;Color 0;1;1;[HDR];Create;True;0;0;0;False;0;False;0,0,0,0;0,0,0,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode;21;-336,256;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode;12;-304,48;Inherit;False;2;2;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.SamplerNode;11;-704,-96;Inherit;True;Property;_TextureSample0;Texture Sample 0;0;0;Create;True;0;0;0;False;0;False;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.SaturateNode;28;-176,192;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;22;-1184,1088;Inherit;False;Constant;_RimPower;RimPower;2;0;Create;True;0;0;0;False;0;False;1;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;25;-1184,1168;Inherit;False;Constant;_RimBias;RimBias;3;0;Create;True;0;0;0;False;0;False;0;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.PowerNode;23;-992,1072;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;27;-1184,1248;Inherit;False;Constant;_RimScale;RimScale;4;0;Create;True;0;0;0;False;0;False;1;1;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.SimpleAddOpNode;24;-832,1152;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode;26;-688,1216;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;10;-190.3,0.7000122;Inherit;False;Constant;_Float0;Float 0;0;0;Create;True;0;0;0;False;0;False;0;0;0;0;0;1;FLOAT;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;0;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ExtraPrePass;0;0;ExtraPrePass;5;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;True;1;1;False;;0;False;;0;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;0;False;False;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1;0,0;Float;False;True;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;13;3DProjection;2992e84f91cbeb14eab234972e07ea9d;True;Forward;0;1;Forward;9;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Transparent=RenderType;Queue=Transparent=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;True;1;5;False;;10;False;;1;1;False;;10;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;2;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=UniversalForwardOnly;False;False;0;;0;0;Standard;25;Surface;1;638835738249073556;  Blend;0;638835738309489874;Two Sided;1;0;Alpha Clipping;0;638835739122585054;  Use Shadow Threshold;0;0;Forward Only;0;0;Cast Shadows;1;0;Receive Shadows;1;0;GPU Instancing;1;0;LOD CrossFade;1;0;Built-in Fog;1;0;Meta Pass;0;0;Extra Pre Pass;0;0;Tessellation;0;0;  Phong;0;0;  Strength;0.5,False,;0;  Type;0;0;  Tess;16,False,;0;  Min;10,False,;0;  Max;25,False,;0;  Edge Length;16,False,;0;  Max Displacement;25,False,;0;Write Depth;0;0;  Early Z;0;0;Vertex Position,InvertActionOnDeselection;1;0;0;10;False;True;True;True;False;False;True;True;True;False;False;;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1;0,0;Float;False;True;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;13;MirrorSkybox;2992e84f91cbeb14eab234972e07ea9d;True;Forward;0;1;Forward;9;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;1;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=AlphaTest=Queue=7;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;True;1;1;False;;0;False;;1;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;True;True;True;1;False;;255;False;;255;False;;5;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;True;True;1;False;;True;7;False;;True;True;0;False;;0;False;;True;1;LightMode=UniversalForwardOnly;False;False;0;;0;0;Standard;25;Surface;0;0;  Blend;0;0;Two Sided;2;638842074764337256;Alpha Clipping;1;0;  Use Shadow Threshold;0;0;Forward Only;0;0;Cast Shadows;1;0;Receive Shadows;1;0;GPU Instancing;1;0;LOD CrossFade;1;0;Built-in Fog;1;0;Meta Pass;0;0;Extra Pre Pass;0;0;Tessellation;0;0;  Phong;0;0;  Strength;0.5,False,;0;  Type;0;0;  Tess;16,False,;0;  Min;10,False,;0;  Max;25,False,;0;  Edge Length;16,False,;0;  Max Displacement;25,False,;0;Write Depth;0;0;  Early Z;0;0;Vertex Position,InvertActionOnDeselection;1;0;0;10;False;True;True;True;False;False;True;True;True;False;False;;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;2;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ShadowCaster;0;2;ShadowCaster;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;True;False;False;False;False;0;False;;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=ShadowCaster;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;3;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthOnly;0;3;DepthOnly;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;True;True;False;False;False;0;False;;False;False;False;False;False;False;False;False;False;True;1;False;;False;False;True;1;LightMode=DepthOnly;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;4;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;Meta;0;4;Meta;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;2;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Meta;False;False;0;;0;0;Standard;0;False;0
@@ -1987,26 +1813,6 @@ Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;6;0,0;Float;False;False;-1;
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;7;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ScenePickingPass;0;7;ScenePickingPass;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Picking;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;8;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthNormals;0;8;DepthNormals;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=DepthNormalsOnly;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;9;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthNormalsOnly;0;9;DepthNormalsOnly;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=DepthNormalsOnly;False;True;9;d3d11;metal;vulkan;xboxone;xboxseries;playstation;ps4;ps5;switch;0;;0;0;Standard;0;False;0
-WireConnection;16;0;13;0
-WireConnection;16;1;14;0
-WireConnection;17;0;16;0
-WireConnection;18;0;17;0
-WireConnection;29;0;18;0
-WireConnection;29;1;30;0
-WireConnection;29;2;31;0
-WireConnection;20;0;29;0
-WireConnection;21;0;10;4
-WireConnection;21;1;19;0
-WireConnection;12;0;11;5
-WireConnection;12;1;10;5
-WireConnection;28;0;21;0
-WireConnection;23;0;18;0
-WireConnection;23;1;22;0
-WireConnection;24;0;23;0
-WireConnection;24;1;25;0
-WireConnection;26;0;24;0
-WireConnection;26;1;27;0
-WireConnection;1;2;12;0
-WireConnection;1;3;28;0
+WireConnection;1;2;10;0
 ASEEND*/
-//CHKSM=AF66F587E03BA3C55903E1D99A766A896F4ACEB0
+//CHKSM=575188DE3B4D56A7B280BD7167D98C768D850B8D
