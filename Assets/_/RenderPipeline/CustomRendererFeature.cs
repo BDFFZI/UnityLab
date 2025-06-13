@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine.Rendering.Universal;
 
-public class PostProcessFeature : ScriptableRendererFeature
+public class CustomRendererFeature : ScriptableRendererFeature
 {
     public static List<ScriptableRenderPass> RenderPasses { get; } = new List<ScriptableRenderPass>();
 

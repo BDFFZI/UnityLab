@@ -20,6 +20,6 @@ public class ImageProcess : MonoBehaviour
     void Update()
     {
         gaussianBlurPass.Setup(blurDownSampling, blurRadius, blurVariance);
-        CustomPassFeature.RenderPasses.Add(gaussianBlurPass);
+        CustomRendererFeature.RenderPasses.Add(gaussianBlurPass);
     }
 }
