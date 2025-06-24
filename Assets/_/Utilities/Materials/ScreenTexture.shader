@@ -3,6 +3,7 @@ Shader "Unlit/ScreenTexture"
 	Properties
 	{
 		_MainTex ("Texture", 2D) = "white" {}
+		[HDR]_Color("Color",Color) = (1,1,1,1)
 	}
 	SubShader
 	{
@@ -25,6 +26,7 @@ Shader "Unlit/ScreenTexture"
 			};
 
 			sampler2D _MainTex;
+			half4 _Color;
 
 			Fragment VertexPass(Vertex vertex)
 			{
@@ -41,7 +43,7 @@ Shader "Unlit/ScreenTexture"
 			float4 FragmentPass(Fragment fragment):SV_TARGET
 			{
 				float2 screenUV = fragment.positionCS.xy / fragment.positionCS.w * 0.5f + 0.5f;
-				return tex2D(_MainTex, screenUV);
+				return tex2D(_MainTex, screenUV) * _Color;
 			}
 			ENDHLSL
 		}

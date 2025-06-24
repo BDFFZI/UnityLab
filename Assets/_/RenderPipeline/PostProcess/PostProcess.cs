@@ -35,6 +35,6 @@ public class PostProcess<TPass> : MonoBehaviour
         if (camera != arg2)
             return;
 
-        CustomRendererFeature.RenderPasses.Add(postProcessPass);
+        CustomRendererFeature.RenderPasses.Add(gameObject.GetComponentIndex(this), postProcessPass);
     }
 }
