@@ -6,7 +6,7 @@ using UnityEngine.Rendering.Universal;
 
 public class Bloom : PostProcess<BloomPass>
 {
-    [SerializeField]
+
 }
 
 public class BloomPass : PostProcessPass
