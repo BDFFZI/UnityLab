@@ -306,8 +306,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   downsample: 2
-  blurIterations: 1
+  blurIterations: 2
   blurRadius: 5
+  renderTarget: 
 --- !u!1 &267468335
 GameObject:
   m_ObjectHideFlags: 0

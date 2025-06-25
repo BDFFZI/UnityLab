@@ -15,13 +15,12 @@ public class BoxBlur : PostProcess<BoxBlurPass>
     [SerializeField] int blurRadius = 1;
     [SerializeField] BoxType blurType = BoxType._2x2;
 
-    protected override void OnBeginCameraRendering(ScriptableRenderContext arg1, Camera arg2)
+    protected override void SetupPass(BoxBlurPass pass)
     {
-        PostProcessPass.Downsample = downsample;
-        PostProcessPass.BlurIterations = blurIterations;
-        PostProcessPass.BlurRadius = blurRadius;
-        PostProcessPass.PassIndex = (int)blurType;
-        base.OnBeginCameraRendering(arg1, arg2);
+        pass.Downsample = downsample;
+        pass.BlurIterations = blurIterations;
+        pass.BlurRadius = blurRadius;
+        pass.PassIndex = (int)blurType;
     }
 }
 

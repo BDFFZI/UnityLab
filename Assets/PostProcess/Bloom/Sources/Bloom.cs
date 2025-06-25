@@ -12,14 +12,13 @@ public class Bloom : PostProcess<BloomPass>
     [SerializeField] [Range(0, 8)] int blurIterations = 1;
     [SerializeField] int blurRadius = 1;
 
-    protected override void OnBeginCameraRendering(ScriptableRenderContext arg1, Camera arg2)
+    protected override void SetupPass(BloomPass pass)
     {
-        PostProcessPass.Threshold = threshold;
-        PostProcessPass.Intensity = intensity;
-        PostProcessPass.Downsample = downsample;
-        PostProcessPass.BlurIterations = blurIterations;
-        PostProcessPass.BlurRadius = blurRadius;
-        base.OnBeginCameraRendering(arg1, arg2);
+        pass.Threshold = threshold;
+        pass.Intensity = intensity;
+        pass.Downsample = downsample;
+        pass.BlurIterations = blurIterations;
+        pass.BlurRadius = blurRadius;
     }
 }
 
@@ -81,7 +80,7 @@ public class BloomPass : PostProcessPass
             //降采样模糊
             for (int i = 0; i < BlurIterations; i++)
                 command.Blit(tempTextures[i], tempTextures[i + 1], material, 1);
-            //升采用模糊增量
+            //升采样模糊增量
             for (int i = 0; i < BlurIterations; i++)
             {
                 command.SetGlobalTexture("_BloomTex", tempTextures[BlurIterations - i - 1]);

@@ -7,34 +7,36 @@ using UnityEngine.Rendering.Universal;
 public class PostProcess<TPass> : MonoBehaviour
     where TPass : PostProcessPass, new()
 {
-    public TPass PostProcessPass => postProcessPass;
+    protected virtual void SetupPass(TPass pass) { }
 
     new Camera camera;
+    UniversalAdditionalCameraData cameraData;
     TPass postProcessPass;
-
-    void Awake()
-    {
-        camera = GetComponent<Camera>();
-    }
 
     protected virtual void OnEnable()
     {
+        camera = GetComponent<Camera>();
+        cameraData = GetComponent<UniversalAdditionalCameraData>();
+
         postProcessPass = new TPass();
-        postProcessPass.renderPassEvent = RenderPassEvent.AfterRenderingPostProcessing;
+        postProcessPass.renderPassEvent = RenderPassEvent.BeforeRenderingPostProcessing;
         RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
     }
 
-    void OnDisable()
+
+    protected virtual void OnDisable()
     {
         RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         postProcessPass.Dispose();
     }
 
-    protected virtual void OnBeginCameraRendering(ScriptableRenderContext arg1, Camera arg2)
+
+    void OnBeginCameraRendering(ScriptableRenderContext renderContext, Camera camera)
     {
-        if (camera != arg2)
+        if (camera != this.camera)
             return;
 
-        CustomRendererFeature.RenderPasses.Add(gameObject.GetComponentIndex(this), postProcessPass);
+        SetupPass(postProcessPass);
+        cameraData.scriptableRenderer.EnqueuePass(postProcessPass);
     }
 }

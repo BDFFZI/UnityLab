@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -7,75 +9,104 @@ public class DualBoxBlur : PostProcess<DualBoxBlurPass>
     [SerializeField] [Range(1, 4)] int downsample = 2;
     [SerializeField] [Range(0, 8)] int blurIterations = 1;
     [SerializeField] int blurRadius = 1;
+    [SerializeField] string customRenderTarget;
 
-    protected override void OnBeginCameraRendering(ScriptableRenderContext arg1, Camera arg2)
+    protected override void SetupPass(DualBoxBlurPass pass)
     {
-        PostProcessPass.Downsample = downsample;
-        PostProcessPass.BlurIterations = blurIterations;
-        PostProcessPass.BlurRadius = blurRadius;
-        base.OnBeginCameraRendering(arg1, arg2);
+        pass.Downsample = downsample;
+        pass.BlurIterations = blurIterations;
+        pass.BlurRadius = blurRadius;
+        pass.CustomRenderTargetID = customRenderTarget;
     }
 }
 
 public class DualBoxBlurPass : PostProcessPass
 {
+    static readonly int BlurRadiusID = Shader.PropertyToID("_BlurRadius");
+
     public int Downsample { get; set; }
     public int BlurIterations { get; set; }
     public int BlurRadius { get; set; }
 
-    Material material = new(Shader.Find("Hidden/BoxBlur"));
+    public string CustomRenderTargetID { get; set; }
+
+    readonly Material material = new(Shader.Find("Hidden/BoxBlur"));
+    readonly List<RenderTexture> tempTextures = new List<RenderTexture>();
+    RTHandle customRenderTarget;
+
+
+    void CreateTempTextures(RenderTextureDescriptor renderTextureDescriptor)
+    {
+        int width = renderTextureDescriptor.width / Downsample;
+        int height = renderTextureDescriptor.height / Downsample;
+
+        RenderTexture initialTex = RenderTexture.GetTemporary(width, height, 0, renderTextureDescriptor.colorFormat);
+        tempTextures.Add(initialTex);
+
+        for (int i = 0; i < BlurIterations; i++)
+        {
+            width /= 2;
+            height /= 2;
+            tempTextures.Add(RenderTexture.GetTemporary(width, height, 0, renderTextureDescriptor.colorFormat));
+        }
+        for (int i = 0; i < BlurIterations; i++)
+        {
+            width *= 2;
+            height *= 2;
+            tempTextures.Add(RenderTexture.GetTemporary(width, height, 0, renderTextureDescriptor.colorFormat));
+        }
+    }
+    void ReleaseTempTextures()
+    {
+        foreach (RenderTexture tempTexture in tempTextures)
+            RenderTexture.ReleaseTemporary(tempTexture);
+        tempTextures.Clear();
+    }
+
 
     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
     {
         //配置材质球
-        material.SetInt("_BlurRadius", BlurRadius / Downsample);
+        material.SetInt(BlurRadiusID, BlurRadius / Downsample);
 
-        //创建纹理
-        RenderTextureDescriptor cameraDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-        int width = cameraDescriptor.width / Downsample;
-        int height = cameraDescriptor.height / Downsample;
-        RenderTexture rtHandle1 = RenderTexture.GetTemporary(width, height, 0, cameraDescriptor.colorFormat);
-        RenderTexture rtHandle2 = RenderTexture.GetTemporary(width, height, 0, cameraDescriptor.colorFormat);
+        //创建临时纹理
+        RenderTextureDescriptor targetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
+        CreateTempTextures(targetDescriptor);
 
-        CommandBuffer cmd = CommandBufferPool.Get("DualBoxBlur");
-        cmd.Blit(renderingData.cameraData.renderer.cameraColorTargetHandle, rtHandle1);
-        //模糊算法
+        //执行模糊算法
         {
-            for (int i = 0; i < BlurIterations; i++)
-            {
-                RenderTexture.ReleaseTemporary(rtHandle2);
-                width /= 2;
-                height /= 2;
-                rtHandle2 = RenderTexture.GetTemporary(width, height, 0, cameraDescriptor.colorFormat);
-                cmd.Blit(rtHandle1, rtHandle2, material, 0);
+            CommandBuffer command = CommandBufferPool.Get("DualBoxBlur");
 
-                RenderTexture.ReleaseTemporary(rtHandle1);
-                width /= 2;
-                height /= 2;
-                rtHandle1 = RenderTexture.GetTemporary(width, height, 0, cameraDescriptor.colorFormat);
-                cmd.Blit(rtHandle2, rtHandle1, material, 0);
-            }
+            //将当前画面传入处理槽
+            command.Blit(renderingData.cameraData.renderer.cameraColorTargetHandle, tempTextures[0]);
+            //降采样模糊
             for (int i = 0; i < BlurIterations; i++)
+                command.Blit(tempTextures[i], tempTextures[i + 1], material, 0);
+            //升采样模糊
+            for (int i = 0; i < BlurIterations; i++)
+                command.Blit(tempTextures[BlurIterations + i], tempTextures[BlurIterations + i + 1], material, 0);
+            //提取处理槽中的画面
+            if (string.IsNullOrEmpty(CustomRenderTargetID))
+                command.Blit(tempTextures.Last(), renderingData.cameraData.renderer.cameraColorTargetHandle);
+            else
             {
-                RenderTexture.ReleaseTemporary(rtHandle2);
-                width *= 2;
-                height *= 2;
-                rtHandle2 = RenderTexture.GetTemporary(width, height, 0, cameraDescriptor.colorFormat);
-                cmd.Blit(rtHandle1, rtHandle2, material, 0);
-
-                RenderTexture.ReleaseTemporary(rtHandle1);
-                width *= 2;
-                height *= 2;
-                rtHandle1 = RenderTexture.GetTemporary(width, height, 0, cameraDescriptor.colorFormat);
-                cmd.Blit(rtHandle2, rtHandle1, material, 0);
+                RenderTextureDescriptor textureDescriptor = new(targetDescriptor.width, targetDescriptor.height, targetDescriptor.colorFormat);
+                RenderingUtils.ReAllocateIfNeeded(ref customRenderTarget, textureDescriptor, FilterMode.Bilinear, TextureWrapMode.Clamp, name: CustomRenderTargetID);
+                command.Blit(tempTextures.Last(), customRenderTarget);
+                command.SetGlobalTexture(CustomRenderTargetID, customRenderTarget);
             }
+
+            context.ExecuteCommandBuffer(command);
+            CommandBufferPool.Release(command);
         }
-        cmd.Blit(rtHandle1, renderingData.cameraData.renderer.cameraColorTargetHandle);
-        context.ExecuteCommandBuffer(cmd);
-        CommandBufferPool.Release(cmd);
 
-        //回收纹理
-        RenderTexture.ReleaseTemporary(rtHandle1);
-        RenderTexture.ReleaseTemporary(rtHandle2);
+        //回收临时纹理
+        ReleaseTempTextures();
+    }
+
+    public override void Dispose()
+    {
+        if (customRenderTarget != null)
+            RTHandles.Release(customRenderTarget);
     }
 }

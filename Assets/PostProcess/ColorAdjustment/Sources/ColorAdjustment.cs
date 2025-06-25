@@ -1,5 +1,4 @@
 using UnityEngine;
-using UnityEngine.Rendering;
 
 [RequireComponent(typeof(Camera))]
 public class ColorAdjustment : PostProcess<SimplePostProcessPass>
@@ -13,17 +12,14 @@ public class ColorAdjustment : PostProcess<SimplePostProcessPass>
     protected override void OnEnable()
     {
         base.OnEnable();
-
         material = new Material(Shader.Find("Hidden/ColorAdjustment"));
-        PostProcessPass.Material = material;
     }
 
-    protected override void OnBeginCameraRendering(ScriptableRenderContext arg1, Camera arg2)
+    protected override void SetupPass(SimplePostProcessPass pass)
     {
         material.SetFloat("_Intensity", intensity);
         material.SetFloat("_Saturate", saturate);
         material.SetFloat("_Contrast", contrast);
-
-        base.OnBeginCameraRendering(arg1, arg2);
+        pass.Material = material;
     }
 }

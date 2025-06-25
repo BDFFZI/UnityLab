@@ -8,12 +8,12 @@ public class GaussianBlur : PostProcess<GaussianBlurPass>
     [SerializeField] [Range(0, 8)] int blurIterations = 1;
     [SerializeField] int blurRadius = 1;
 
-    protected override void OnBeginCameraRendering(ScriptableRenderContext arg1, Camera arg2)
+
+    protected override void SetupPass(GaussianBlurPass pass)
     {
-        PostProcessPass.Downsample = downsample;
-        PostProcessPass.BlurIterations = blurIterations;
-        PostProcessPass.BlurRadius = blurRadius;
-        base.OnBeginCameraRendering(arg1, arg2);
+        pass.Downsample = downsample;
+        pass.BlurIterations = blurIterations;
+        pass.BlurRadius = blurRadius;
     }
 }
 
