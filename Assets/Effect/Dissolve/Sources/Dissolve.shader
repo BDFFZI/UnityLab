@@ -10,6 +10,7 @@ Shader "Dissolve"
 		_EdgeWdith("EdgeWdith", Range( 0.001 , 1)) = 0.1
 		_ColorTex("ColorTex", 2D) = "white" {}
 		[HDR]_EdgeColor("EdgeColor", Color) = (0,0,0,0)
+		[Toggle(_AUTOPLAY_ON)] _AutoPlay("AutoPlay", Float) = 0
 		[HideInInspector] _texcoord( "", 2D ) = "white" {}
 
 
@@ -172,25 +173,28 @@ Shader "Dissolve"
 			HLSLPROGRAM
 
 			
-
-			#pragma shader_feature_local _RECEIVE_SHADOWS_OFF
-			#pragma multi_compile_instancing
-			#pragma instancing_options renderinglayer
-			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-			#pragma multi_compile_fog
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#pragma multi_compile_fragment _ALPHATEST_ON
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #pragma shader_feature_local _RECEIVE_SHADOWS_OFF
+            #pragma multi_compile_instancing
+            #pragma instancing_options renderinglayer
+            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            #pragma multi_compile_fog
+            #define ASE_FOG 1
+            #define _SURFACE_TYPE_TRANSPARENT 1
+            #pragma multi_compile_fragment _ALPHATEST_ON
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
 			#pragma multi_compile_fragment _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
 
 			
+            #pragma multi_compile_fragment _ _WRITE_RENDERING_LAYERS
+		
 
 			#pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ LIGHTMAP_ON
@@ -203,16 +207,8 @@ Shader "Dissolve"
 			#define SHADERPASS SHADERPASS_UNLIT
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			
-			#if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -222,12 +218,10 @@ Shader "Dissolve"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
-			#if ASE_SRP_VERSION >=140010
-			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-			#endif
-		
 
 			
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
+		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DBuffer.hlsl"
@@ -240,7 +234,8 @@ Shader "Dissolve"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			
+			#pragma shader_feature_local _AUTOPLAY_ON
+
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
 				#define ASE_SV_DEPTH SV_DepthLessEqual
@@ -511,7 +506,13 @@ Shader "Dissolve"
 				float2 uv_ColorTex = input.ase_texcoord6.xy * _ColorTex_ST.xy + _ColorTex_ST.zw;
 				float2 texCoord12 = input.ase_texcoord6.xy * float2( 1,1 ) + float2( 0,0 );
 				float simpleNoise11 = SimpleNoise( texCoord12*30.0 );
-				float Mask80 = ( simpleNoise11 - (-1.0 + (_Intensity - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
+				float mulTime86 = _TimeParameters.x * 0.3;
+				#ifdef _AUTOPLAY_ON
+				float staticSwitch88 = frac( mulTime86 );
+				#else
+				float staticSwitch88 = _Intensity;
+				#endif
+				float Mask80 = ( simpleNoise11 - (-1.0 + (staticSwitch88 - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
 				float clampResult64 = clamp( ( 1.0 - ( distance( Mask80 , 0.5 ) / _EdgeWdith ) ) , 0.0 , 1.0 );
 				float Edge68 = clampResult64;
 				float3 lerpResult40 = lerp( tex2D( _ColorTex, uv_ColorTex ).rgb , _EdgeColor.rgb , Edge68);
@@ -585,17 +586,18 @@ Shader "Dissolve"
 			HLSLPROGRAM
 
 			
-
-			#pragma multi_compile_instancing
-			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#pragma multi_compile _ALPHATEST_ON
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            #define ASE_FOG 1
+            #define _SURFACE_TYPE_TRANSPARENT 1
+            #pragma multi_compile _ALPHATEST_ON
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
 
@@ -605,10 +607,6 @@ Shader "Dissolve"
 			#define SHADERPASS SHADERPASS_SHADOWCASTER
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -619,7 +617,8 @@ Shader "Dissolve"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			
+			#pragma shader_feature_local _AUTOPLAY_ON
+
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
 				#define ASE_SV_DEPTH SV_DepthLessEqual
@@ -878,7 +877,13 @@ Shader "Dissolve"
 
 				float2 texCoord12 = input.ase_texcoord3.xy * float2( 1,1 ) + float2( 0,0 );
 				float simpleNoise11 = SimpleNoise( texCoord12*30.0 );
-				float Mask80 = ( simpleNoise11 - (-1.0 + (_Intensity - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
+				float mulTime86 = _TimeParameters.x * 0.3;
+				#ifdef _AUTOPLAY_ON
+				float staticSwitch88 = frac( mulTime86 );
+				#else
+				float staticSwitch88 = _Intensity;
+				#endif
+				float Mask80 = ( simpleNoise11 - (-1.0 + (staticSwitch88 - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
 				
 
 				float Alpha = step( 0.5 , Mask80 );
@@ -924,26 +929,23 @@ Shader "Dissolve"
 			HLSLPROGRAM
 
 			
-
-			#pragma multi_compile_instancing
-			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#pragma multi_compile _ALPHATEST_ON
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            #define ASE_FOG 1
+            #define _SURFACE_TYPE_TRANSPARENT 1
+            #pragma multi_compile _ALPHATEST_ON
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma vertex vert
 			#pragma fragment frag
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -954,7 +956,8 @@ Shader "Dissolve"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			
+			#pragma shader_feature_local _AUTOPLAY_ON
+
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
 				#define ASE_SV_DEPTH SV_DepthLessEqual
@@ -1192,7 +1195,13 @@ Shader "Dissolve"
 
 				float2 texCoord12 = input.ase_texcoord3.xy * float2( 1,1 ) + float2( 0,0 );
 				float simpleNoise11 = SimpleNoise( texCoord12*30.0 );
-				float Mask80 = ( simpleNoise11 - (-1.0 + (_Intensity - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
+				float mulTime86 = _TimeParameters.x * 0.3;
+				#ifdef _AUTOPLAY_ON
+				float staticSwitch88 = frac( mulTime86 );
+				#else
+				float staticSwitch88 = _Intensity;
+				#endif
+				float Mask80 = ( simpleNoise11 - (-1.0 + (staticSwitch88 - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
 				
 
 				float Alpha = step( 0.5 , Mask80 );
@@ -1232,14 +1241,15 @@ Shader "Dissolve"
 			HLSLPROGRAM
 
 			
-
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #define ASE_FOG 1
+            #define _SURFACE_TYPE_TRANSPARENT 1
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1249,16 +1259,8 @@ Shader "Dissolve"
 			#define SHADERPASS SHADERPASS_DEPTHONLY
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			
-			#if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1267,17 +1269,16 @@ Shader "Dissolve"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
-			#if ASE_SRP_VERSION >=140010
-			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-			#endif
-		
 
 			
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
+		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
 
-			
+			#pragma shader_feature_local _AUTOPLAY_ON
+
 
 			struct Attributes
 			{
@@ -1482,7 +1483,13 @@ Shader "Dissolve"
 
 				float2 texCoord12 = input.ase_texcoord.xy * float2( 1,1 ) + float2( 0,0 );
 				float simpleNoise11 = SimpleNoise( texCoord12*30.0 );
-				float Mask80 = ( simpleNoise11 - (-1.0 + (_Intensity - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
+				float mulTime86 = _TimeParameters.x * 0.3;
+				#ifdef _AUTOPLAY_ON
+				float staticSwitch88 = frac( mulTime86 );
+				#else
+				float staticSwitch88 = _Intensity;
+				#endif
+				float Mask80 = ( simpleNoise11 - (-1.0 + (staticSwitch88 - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
 				
 
 				surfaceDescription.Alpha = step( 0.5 , Mask80 );
@@ -1514,14 +1521,15 @@ Shader "Dissolve"
 			HLSLPROGRAM
 
 			
-
-			#define ASE_FOG 1
-			#define _SURFACE_TYPE_TRANSPARENT 1
-			#define ASE_VERSION 19801
-			#define ASE_SRP_VERSION 140011
+            #define ASE_FOG 1
+            #define _SURFACE_TYPE_TRANSPARENT 1
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1532,16 +1540,8 @@ Shader "Dissolve"
 			#define SHADERPASS SHADERPASS_DEPTHONLY
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			
-			#if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1550,12 +1550,10 @@ Shader "Dissolve"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
-			#if ASE_SRP_VERSION >=140010
-			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-			#endif
-		
 
 			
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
+		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
@@ -1564,7 +1562,8 @@ Shader "Dissolve"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			
+			#pragma shader_feature_local _AUTOPLAY_ON
+
 
 			struct Attributes
 			{
@@ -1766,7 +1765,13 @@ Shader "Dissolve"
 
 				float2 texCoord12 = input.ase_texcoord.xy * float2( 1,1 ) + float2( 0,0 );
 				float simpleNoise11 = SimpleNoise( texCoord12*30.0 );
-				float Mask80 = ( simpleNoise11 - (-1.0 + (_Intensity - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
+				float mulTime86 = _TimeParameters.x * 0.3;
+				#ifdef _AUTOPLAY_ON
+				float staticSwitch88 = frac( mulTime86 );
+				#else
+				float staticSwitch88 = _Intensity;
+				#endif
+				float Mask80 = ( simpleNoise11 - (-1.0 + (staticSwitch88 - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
 				
 
 				surfaceDescription.Alpha = step( 0.5 , Mask80 );
@@ -1802,21 +1807,24 @@ Shader "Dissolve"
 			HLSLPROGRAM
 
 			
-
-        	#pragma multi_compile_instancing
-        	#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-        	#define ASE_FOG 1
-        	#define _SURFACE_TYPE_TRANSPARENT 1
-        	#pragma multi_compile _ALPHATEST_ON
-        	#define ASE_VERSION 19801
-        	#define ASE_SRP_VERSION 140011
+            #pragma multi_compile_instancing
+            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+            #define ASE_FOG 1
+            #define _SURFACE_TYPE_TRANSPARENT 1
+            #pragma multi_compile _ALPHATEST_ON
+            #define ASE_VERSION 19801
+            #define ASE_SRP_VERSION 140011
 
 
 			
+            #pragma multi_compile _ DOTS_INSTANCING_ON
+		
 
         	#pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
 
 			
+            #pragma multi_compile_fragment _ _WRITE_RENDERING_LAYERS
+		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1828,16 +1836,8 @@ Shader "Dissolve"
 			#define SHADERPASS SHADERPASS_DEPTHNORMALSONLY
 
 			
-            #if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
-			#endif
-		
 
 			
-			#if ASE_SRP_VERSION >=140007
-			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
-			#endif
-		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1846,12 +1846,10 @@ Shader "Dissolve"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
-			#if ASE_SRP_VERSION >=140010
-			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
-			#endif
-		
 
 			
+			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
+		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
@@ -1860,7 +1858,8 @@ Shader "Dissolve"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/LODCrossFade.hlsl"
             #endif
 
-			
+			#pragma shader_feature_local _AUTOPLAY_ON
+
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
 				#define ASE_SV_DEPTH SV_DepthLessEqual
@@ -2087,7 +2086,13 @@ Shader "Dissolve"
 
 				float2 texCoord12 = input.ase_texcoord3.xy * float2( 1,1 ) + float2( 0,0 );
 				float simpleNoise11 = SimpleNoise( texCoord12*30.0 );
-				float Mask80 = ( simpleNoise11 - (-1.0 + (_Intensity - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
+				float mulTime86 = _TimeParameters.x * 0.3;
+				#ifdef _AUTOPLAY_ON
+				float staticSwitch88 = frac( mulTime86 );
+				#else
+				float staticSwitch88 = _Intensity;
+				#endif
+				float Mask80 = ( simpleNoise11 - (-1.0 + (staticSwitch88 - 0.0) * (1.0 - -1.0) / (1.0 - 0.0)) );
 				
 
 				float Alpha = step( 0.5 , Mask80 );
@@ -2138,8 +2143,11 @@ Shader "Dissolve"
 }
 /*ASEBEGIN
 Version=19801
+Node;AmplifyShaderEditor.SimpleTimeNode;86;-3152,928;Inherit;False;1;0;FLOAT;0.3;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;14;-3072,720;Inherit;False;Property;_Intensity;Intensity;0;0;Create;True;0;0;0;False;0;False;0.4896002;0;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.FractNode;87;-2912,912;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.TextureCoordinatesNode;12;-2928,448;Inherit;False;0;-1;2;3;2;SAMPLER2D;;False;0;FLOAT2;1,1;False;1;FLOAT2;0,0;False;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.RangedFloatNode;14;-2832,768;Inherit;False;Property;_Intensity;Intensity;0;0;Create;True;0;0;0;False;0;False;0.4896002;0;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.StaticSwitch;88;-2768,880;Inherit;False;Property;_AutoPlay;AutoPlay;4;0;Create;True;0;0;0;False;0;False;0;0;0;True;;Toggle;2;Key0;Key1;Create;True;True;All;9;1;FLOAT;0;False;0;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;4;FLOAT;0;False;5;FLOAT;0;False;6;FLOAT;0;False;7;FLOAT;0;False;8;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.TFHCRemapNode;82;-2448,752;Inherit;False;5;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;1;False;3;FLOAT;-1;False;4;FLOAT;1;False;1;FLOAT;0
 Node;AmplifyShaderEditor.NoiseGeneratorNode;11;-2496,464;Inherit;True;Simple;True;False;2;0;FLOAT2;0,0;False;1;FLOAT;30;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleSubtractOpNode;18;-2144,592;Inherit;True;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
@@ -2148,11 +2156,11 @@ Node;AmplifyShaderEditor.GetLocalVarNode;66;-704,176;Inherit;False;80;Mask;1;0;O
 Node;AmplifyShaderEditor.GradientNode;42;-2912,256;Inherit;False;0;2;2;0,0,0,0;1,1,1,1;1,0;1,1;0;1;OBJECT;0
 Node;AmplifyShaderEditor.GradientSampleNode;43;-2560,256;Inherit;True;2;0;OBJECT;;False;1;FLOAT;0;False;5;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.PowerNode;69;-2224,304;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;0.4545455;False;1;FLOAT;0
-Node;AmplifyShaderEditor.SamplerNode;29;-1152,-672;Inherit;True;Property;_ColorTex;ColorTex;2;0;Create;True;0;0;0;False;0;False;-1;a72e41647825ac146b6d7f30b9651f63;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
+Node;AmplifyShaderEditor.SamplerNode;29;-1152,-672;Inherit;True;Property;_ColorTex;ColorTex;2;0;Create;True;0;0;0;False;0;False;-1;a72e41647825ac146b6d7f30b9651f63;a72e41647825ac146b6d7f30b9651f63;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
 Node;AmplifyShaderEditor.SimpleDivideOpNode;62;-2832,-352;Inherit;True;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;41;-1056,-192;Inherit;False;68;Edge;1;0;OBJECT;;False;1;FLOAT;0
 Node;AmplifyShaderEditor.LerpOp;40;-720,-432;Inherit;True;3;0;FLOAT3;1,1,1;False;1;FLOAT3;0,0,0;False;2;FLOAT;0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.ColorNode;73;-1120,-432;Inherit;False;Property;_EdgeColor;EdgeColor;4;1;[HDR];Create;True;0;0;0;False;0;False;0,0,0,0;0,0,0,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
+Node;AmplifyShaderEditor.ColorNode;73;-1120,-432;Inherit;False;Property;_EdgeColor;EdgeColor;3;1;[HDR];Create;True;0;0;0;False;0;False;0,0,0,0;0,0,0,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
 Node;AmplifyShaderEditor.RangedFloatNode;63;-3200,-208;Inherit;False;Property;_EdgeWdith;EdgeWdith;1;0;Create;True;0;0;0;False;0;False;0.1;0.1;0.001;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.StepOpNode;83;-352,112;Inherit;False;2;0;FLOAT;0.5;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;67;-3376,-512;Inherit;False;80;Mask;1;0;OBJECT;;False;1;FLOAT;0
@@ -2170,7 +2178,10 @@ Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;7;0,0;Float;False;False;-1;
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;8;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthNormals;0;8;DepthNormals;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=DepthNormalsOnly;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;9;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthNormalsOnly;0;9;DepthNormalsOnly;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=DepthNormalsOnly;False;True;9;d3d11;metal;vulkan;xboxone;xboxseries;playstation;ps4;ps5;switch;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1;0,0;Float;False;True;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;13;Dissolve;2992e84f91cbeb14eab234972e07ea9d;True;Forward;0;1;Forward;9;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Transparent=RenderType;Queue=Transparent=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;True;1;5;False;;10;False;;1;1;False;;10;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;2;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=UniversalForwardOnly;False;False;0;;0;0;Standard;25;Surface;1;638864993479763919;  Blend;0;0;Two Sided;1;0;Alpha Clipping;1;638865132357888786;  Use Shadow Threshold;0;0;Forward Only;0;0;Cast Shadows;1;0;Receive Shadows;1;0;GPU Instancing;1;0;LOD CrossFade;1;0;Built-in Fog;1;0;Meta Pass;0;0;Extra Pre Pass;0;0;Tessellation;0;0;  Phong;0;0;  Strength;0.5,False,;0;  Type;0;0;  Tess;16,False,;0;  Min;10,False,;0;  Max;25,False,;0;  Edge Length;16,False,;0;  Max Displacement;25,False,;0;Write Depth;0;0;  Early Z;0;0;Vertex Position,InvertActionOnDeselection;1;0;0;10;False;True;True;True;False;False;True;True;True;False;False;;False;0
-WireConnection;82;0;14;0
+WireConnection;87;0;86;0
+WireConnection;88;1;14;0
+WireConnection;88;0;87;0
+WireConnection;82;0;88;0
 WireConnection;11;0;12;0
 WireConnection;18;0;11;0
 WireConnection;18;1;82;0
@@ -2191,4 +2202,4 @@ WireConnection;64;0;60;0
 WireConnection;1;2;40;0
 WireConnection;1;3;83;0
 ASEEND*/
-//CHKSM=B9C6D923922152908175B4191F69FE7406BFB79F
+//CHKSM=4689834EC0E8B18591F8D46FB2F6CBFFDCF5BC27
