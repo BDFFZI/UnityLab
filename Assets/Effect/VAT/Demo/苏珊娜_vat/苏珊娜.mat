@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: Dissolve
-  m_Shader: {fileID: 4800000, guid: 9540a5943a56201488b1ae15ef34e51d, type: 3}
+  m_Name: "\u82CF\u73CA\u5A1C"
+  m_Shader: {fileID: 4800000, guid: 7c29c42256aa0fd48bdaf89f88b890fa, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -23,20 +23,8 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
-    - _ColorTex:
-        m_Texture: {fileID: 2800000, guid: 750b1bd7ba8bd28489650de6d0a95cc5, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _EdgeTex:
-        m_Texture: {fileID: 2800000, guid: edea1d26c5fc2754dac6bd3b31ec55fd, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _MainTex:
-        m_Texture: {fileID: 2800000, guid: 750b1bd7ba8bd28489650de6d0a95cc5, type: 3}
-        m_Scale: {x: 1, y: 1}
-        m_Offset: {x: 0, y: 0}
-    - _texcoord:
-        m_Texture: {fileID: 0}
+    - _VAT:
+        m_Texture: {fileID: 2800000, guid: 50ff7ca578d6cb44c89073526b37dc90, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - unity_Lightmaps:
@@ -54,26 +42,11 @@ Material:
     m_Ints: []
     m_Floats:
     - _AlphaCutoff: 0.5
-    - _AutoPlay: 0
-    - _EdgeIntensity: 6
-    - _EdgeThreshold: 0.8
-    - _EdgeWdith: 0.1
-    - _EdgeWidth: 0.25
-    - _Intensity: 0.53
-    - _MarginScale: 0.2
+    - _EnvironmentReflections: 1
     - _QueueControl: 0
     - _QueueOffset: 0
     - _ReceiveShadows: 1
-    - _Smoothness: 0.6
-    - _TessEdgeLength: 16
-    - _TessMax: 25
-    - _TessMaxDisp: 25
-    - _TessMin: 10
-    - _TessPhongStrength: 0.5
-    - _TessValue: 16
-    - _WeightPower: 4
+    - _SpecularHighlights: 1
     m_Colors:
-    - _EdgeColor: {r: 2.9424992, g: 0.44697398, b: 0, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
-    - _NoiseSpeed: {r: 0.1, g: -0.3, b: 0, a: 0}
   m_BuildTextureStacks: []

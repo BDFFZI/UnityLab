@@ -6,6 +6,11 @@ Shader "VAT"
 	{
 		[HideInInspector] _AlphaCutoff("Alpha Cutoff ", Range(0, 1)) = 0.5
 		[HideInInspector] _EmissionColor("Emission Color", Color) = (1,1,1,1)
+		_MinBound("MinBound", Vector) = (0,0,0,0)
+		_MaxBound("MaxBound", Vector) = (0,0,0,0)
+		_FrameCount("FrameCount", Float) = 30
+		_Rate("Rate", Range( 0 , 0.999)) = 0
+		_VAT("VAT", 2D) = "white" {}
 
 
 		//_TransmissionShadow( "Transmission Shadow", Range( 0, 1 ) ) = 0.5
@@ -321,7 +326,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -351,7 +362,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			
 			PackedVaryings VertexFunction( Attributes input  )
@@ -361,6 +373,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
+				float2 uv2_VAT = input.texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
@@ -369,14 +391,14 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
 				#else
 					input.positionOS.xyz += vertexValue;
 				#endif
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 				input.tangentOS = input.tangentOS;
 
 				VertexPositionInputs vertexInput = GetVertexPositionInputs( input.positionOS.xyz );
@@ -881,7 +903,7 @@ Shader "VAT"
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -899,7 +921,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -929,7 +957,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			
 			float3 _LightDirection;
@@ -942,6 +971,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO( output );
 
+				float2 uv2_VAT = input.ase_texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
@@ -950,14 +989,14 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
 				#else
 					input.positionOS.xyz += vertexValue;
 				#endif
 
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 
 				float3 positionWS = TransformObjectToWorld( input.positionOS.xyz );
 				float3 normalWS = TransformObjectToWorldDir(input.normalOS);
@@ -994,7 +1033,8 @@ Shader "VAT"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1011,7 +1051,7 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord1 = input.ase_texcoord1;
 				return output;
 			}
 
@@ -1050,7 +1090,7 @@ Shader "VAT"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord1 = patch[0].ase_texcoord1 * bary.x + patch[1].ase_texcoord1 * bary.y + patch[2].ase_texcoord1 * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -1200,7 +1240,7 @@ Shader "VAT"
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1218,7 +1258,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -1248,7 +1294,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			
 			PackedVaryings VertexFunction( Attributes input  )
@@ -1258,6 +1305,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
+				float2 uv2_VAT = input.ase_texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
@@ -1266,7 +1323,7 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
@@ -1274,7 +1331,7 @@ Shader "VAT"
 					input.positionOS.xyz += vertexValue;
 				#endif
 
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 
 				VertexPositionInputs vertexInput = GetVertexPositionInputs( input.positionOS.xyz );
 
@@ -1293,7 +1350,8 @@ Shader "VAT"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1310,7 +1368,7 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord1 = input.ase_texcoord1;
 				return output;
 			}
 
@@ -1349,7 +1407,7 @@ Shader "VAT"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord1 = patch[0].ase_texcoord1 * bary.x + patch[1].ase_texcoord1 * bary.y + patch[2].ase_texcoord1 * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -1495,7 +1553,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -1525,7 +1589,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			
 			PackedVaryings VertexFunction( Attributes input  )
@@ -1535,6 +1600,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
+				float2 uv2_VAT = input.texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
@@ -1543,7 +1618,7 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
@@ -1551,7 +1626,7 @@ Shader "VAT"
 					input.positionOS.xyz += vertexValue;
 				#endif
 
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 
 				float3 positionWS = TransformObjectToWorld( input.positionOS.xyz );
 
@@ -1767,7 +1842,7 @@ Shader "VAT"
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1786,7 +1861,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -1816,7 +1897,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			
 			PackedVaryings VertexFunction( Attributes input  )
@@ -1826,6 +1908,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID( input, output );
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO( output );
 
+				float2 uv2_VAT = input.ase_texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
@@ -1834,7 +1926,7 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
@@ -1842,7 +1934,7 @@ Shader "VAT"
 					input.positionOS.xyz += vertexValue;
 				#endif
 
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 
 				VertexPositionInputs vertexInput = GetVertexPositionInputs( input.positionOS.xyz );
 
@@ -1863,7 +1955,8 @@ Shader "VAT"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1880,7 +1973,7 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord1 = input.ase_texcoord1;
 				return output;
 			}
 
@@ -1919,7 +2012,7 @@ Shader "VAT"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord1 = patch[0].ase_texcoord1 * bary.x + patch[1].ase_texcoord1 * bary.y + patch[2].ase_texcoord1 * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -2065,7 +2158,7 @@ Shader "VAT"
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
 				float4 tangentOS : TANGENT;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -2085,7 +2178,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -2115,7 +2214,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			
 			PackedVaryings VertexFunction( Attributes input  )
@@ -2125,6 +2225,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
+				float2 uv2_VAT = input.ase_texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -2132,7 +2242,7 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
@@ -2140,7 +2250,7 @@ Shader "VAT"
 					input.positionOS.xyz += vertexValue;
 				#endif
 
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 				input.tangentOS = input.tangentOS;
 
 				VertexPositionInputs vertexInput = GetVertexPositionInputs( input.positionOS.xyz );
@@ -2166,7 +2276,8 @@ Shader "VAT"
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
 				float4 tangentOS : TANGENT;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -2184,7 +2295,7 @@ Shader "VAT"
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
 				output.tangentOS = input.tangentOS;
-				
+				output.ase_texcoord1 = input.ase_texcoord1;
 				return output;
 			}
 
@@ -2224,7 +2335,7 @@ Shader "VAT"
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
 				output.tangentOS = patch[0].tangentOS * bary.x + patch[1].tangentOS * bary.y + patch[2].tangentOS * bary.z;
-				
+				output.ase_texcoord1 = patch[0].ase_texcoord1 * bary.x + patch[1].ase_texcoord1 * bary.y + patch[2].ase_texcoord1 * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -2473,7 +2584,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -2503,7 +2620,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/UnityGBuffer.hlsl"
 
@@ -2515,6 +2633,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
+				float2 uv2_VAT = input.texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -2522,7 +2650,7 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
@@ -2530,7 +2658,7 @@ Shader "VAT"
 					input.positionOS.xyz += vertexValue;
 				#endif
 
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 				input.tangentOS = input.tangentOS;
 
 				VertexPositionInputs vertexInput = GetVertexPositionInputs( input.positionOS.xyz );
@@ -2893,7 +3021,7 @@ Shader "VAT"
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -2906,7 +3034,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -2936,7 +3070,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			
 			struct SurfaceDescription
@@ -2954,6 +3089,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
+				float2 uv2_VAT = input.ase_texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
@@ -2962,7 +3107,7 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
@@ -2970,7 +3115,7 @@ Shader "VAT"
 					input.positionOS.xyz += vertexValue;
 				#endif
 
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 
 				float3 positionWS = TransformObjectToWorld( input.positionOS.xyz );
 
@@ -2984,7 +3129,8 @@ Shader "VAT"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -3001,7 +3147,7 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord1 = input.ase_texcoord1;
 				return output;
 			}
 
@@ -3040,7 +3186,7 @@ Shader "VAT"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord1 = patch[0].ase_texcoord1 * bary.x + patch[1].ase_texcoord1 * bary.y + patch[2].ase_texcoord1 * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -3156,7 +3302,7 @@ Shader "VAT"
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -3169,7 +3315,13 @@ Shader "VAT"
 			};
 
 			CBUFFER_START(UnityPerMaterial)
-						#ifdef ASE_TRANSMISSION
+			float4 _VAT_ST;
+			float4 _VAT_TexelSize;
+			float3 _MinBound;
+			float3 _MaxBound;
+			float _FrameCount;
+			float _Rate;
+			#ifdef ASE_TRANSMISSION
 				float _TransmissionShadow;
 			#endif
 			#ifdef ASE_TRANSLUCENCY
@@ -3199,7 +3351,8 @@ Shader "VAT"
 				int _PassValue;
 			#endif
 
-			
+			sampler2D _VAT;
+
 
 			
 			struct SurfaceDescription
@@ -3217,6 +3370,16 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
+				float2 uv2_VAT = input.ase_texcoord1.xy * _VAT_ST.xy + _VAT_ST.zw;
+				float2 break32 = uv2_VAT;
+				float2 appendResult34 = (float2(break32.x , ( break32.y - ( _VAT_TexelSize.y * floor( ( _FrameCount * _Rate ) ) ) )));
+				float2 VAT_UV38 = appendResult34;
+				float3 lerpResult17 = lerp( _MinBound , _MaxBound , tex2Dlod( _VAT, float4( VAT_UV38, 0, 0.0) ).rgb);
+				float3 break20 = lerpResult17;
+				float3 appendResult21 = (float3(break20.x , break20.z , break20.y));
+				
+				float3 break68 = tex2Dlod( _VAT, float4( ( VAT_UV38 - float2( 0,0.5 ) ), 0, 0.0) ).rgb;
+				float3 appendResult70 = (float3(break68.x , break68.z , break68.y));
 				
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
@@ -3225,7 +3388,7 @@ Shader "VAT"
 					float3 defaultVertexValue = float3(0, 0, 0);
 				#endif
 
-				float3 vertexValue = defaultVertexValue;
+				float3 vertexValue = appendResult21;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					input.positionOS.xyz = vertexValue;
@@ -3233,7 +3396,7 @@ Shader "VAT"
 					input.positionOS.xyz += vertexValue;
 				#endif
 
-				input.normalOS = input.normalOS;
+				input.normalOS = (appendResult70*2.0 + -1.0);
 
 				float3 positionWS = TransformObjectToWorld( input.positionOS.xyz );
 				output.positionCS = TransformWorldToHClip(positionWS);
@@ -3246,7 +3409,8 @@ Shader "VAT"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord1 : TEXCOORD1;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -3263,7 +3427,7 @@ Shader "VAT"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord1 = input.ase_texcoord1;
 				return output;
 			}
 
@@ -3302,7 +3466,7 @@ Shader "VAT"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord1 = patch[0].ase_texcoord1 * bary.x + patch[1].ase_texcoord1 * bary.y + patch[2].ase_texcoord1 * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -3360,6 +3524,35 @@ Shader "VAT"
 }
 /*ASEBEGIN
 Version=19801
+Node;AmplifyShaderEditor.TexturePropertyNode;58;-3760,-496;Inherit;True;Property;_VAT;VAT;4;0;Create;True;0;0;0;False;0;False;None;None;False;white;Auto;Texture2D;-1;0;2;SAMPLER2D;0;SAMPLERSTATE;1
+Node;AmplifyShaderEditor.RangedFloatNode;27;-3920,192;Inherit;False;Property;_FrameCount;FrameCount;2;0;Create;True;0;0;0;False;0;False;30;30;0;0;0;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;26;-4016,352;Inherit;False;Property;_Rate;Rate;3;0;Create;True;0;0;0;False;0;False;0;0;0;0.999;0;1;FLOAT;0
+Node;AmplifyShaderEditor.RegisterLocalVarNode;59;-3488,-496;Inherit;False;VAT;-1;True;1;0;SAMPLER2D;;False;1;SAMPLER2D;0
+Node;AmplifyShaderEditor.SimpleMultiplyOpNode;28;-3680,256;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.GetLocalVarNode;62;-3862.703,-98.06702;Inherit;False;59;VAT;1;0;OBJECT;;False;1;SAMPLER2D;0
+Node;AmplifyShaderEditor.FloorOpNode;29;-3504,256;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.TexelSizeNode;24;-3568,48;Inherit;False;51;Create;1;0;SAMPLER2D;;False;5;FLOAT4;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
+Node;AmplifyShaderEditor.TextureCoordinatesNode;61;-3584,-176;Inherit;False;1;-1;2;3;2;SAMPLER2D;;False;0;FLOAT2;1,1;False;1;FLOAT2;0,0;False;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
+Node;AmplifyShaderEditor.SimpleMultiplyOpNode;31;-3312,144;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.BreakToComponentsNode;32;-3296,-160;Inherit;False;FLOAT2;1;0;FLOAT2;0,0;False;16;FLOAT;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT;5;FLOAT;6;FLOAT;7;FLOAT;8;FLOAT;9;FLOAT;10;FLOAT;11;FLOAT;12;FLOAT;13;FLOAT;14;FLOAT;15
+Node;AmplifyShaderEditor.SimpleSubtractOpNode;36;-3088,48;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.DynamicAppendNode;34;-2832,-64;Inherit;False;FLOAT2;4;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;1;FLOAT2;0
+Node;AmplifyShaderEditor.RegisterLocalVarNode;38;-2592,-64;Inherit;False;VAT_UV;-1;True;1;0;FLOAT2;0,0;False;1;FLOAT2;0
+Node;AmplifyShaderEditor.GetLocalVarNode;64;-1920,320;Inherit;False;38;VAT_UV;1;0;OBJECT;;False;1;FLOAT2;0
+Node;AmplifyShaderEditor.Vector2Node;66;-1936,432;Inherit;False;Constant;_Vector0;Vector 0;5;0;Create;True;0;0;0;False;0;False;0,0.5;0,0;0;3;FLOAT2;0;FLOAT;1;FLOAT;2
+Node;AmplifyShaderEditor.GetLocalVarNode;39;-1856,32;Inherit;False;38;VAT_UV;1;0;OBJECT;;False;1;FLOAT2;0
+Node;AmplifyShaderEditor.GetLocalVarNode;60;-1744,-128;Inherit;False;59;VAT;1;0;OBJECT;;False;1;SAMPLER2D;0
+Node;AmplifyShaderEditor.SimpleSubtractOpNode;65;-1680,368;Inherit;False;2;0;FLOAT2;0,0;False;1;FLOAT2;0,0;False;1;FLOAT2;0
+Node;AmplifyShaderEditor.Vector3Node;14;-1152,-384;Inherit;False;Property;_MinBound;MinBound;0;0;Create;True;0;0;0;False;0;False;0,0,0;0,0,0;0;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
+Node;AmplifyShaderEditor.Vector3Node;16;-1152,-224;Inherit;False;Property;_MaxBound;MaxBound;1;0;Create;True;0;0;0;False;0;False;0,0,0;0,0,0;0;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
+Node;AmplifyShaderEditor.SamplerNode;63;-1408,64;Inherit;True;Property;_TextureSample0;Texture Sample 0;5;0;Create;True;0;0;0;False;0;False;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
+Node;AmplifyShaderEditor.SamplerNode;67;-1408,336;Inherit;True;Property;_TextureSample1;Texture Sample 1;5;0;Create;True;0;0;0;False;0;False;-1;None;None;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
+Node;AmplifyShaderEditor.LerpOp;17;-800,-64;Inherit;False;3;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;2;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.BreakToComponentsNode;68;-992,352;Inherit;False;FLOAT3;1;0;FLOAT3;0,0,0;False;16;FLOAT;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT;5;FLOAT;6;FLOAT;7;FLOAT;8;FLOAT;9;FLOAT;10;FLOAT;11;FLOAT;12;FLOAT;13;FLOAT;14;FLOAT;15
+Node;AmplifyShaderEditor.BreakToComponentsNode;20;-512,-48;Inherit;False;FLOAT3;1;0;FLOAT3;0,0,0;False;16;FLOAT;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT;5;FLOAT;6;FLOAT;7;FLOAT;8;FLOAT;9;FLOAT;10;FLOAT;11;FLOAT;12;FLOAT;13;FLOAT;14;FLOAT;15
+Node;AmplifyShaderEditor.DynamicAppendNode;70;-816,352;Inherit;False;FLOAT3;4;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.DynamicAppendNode;21;-256,-48;Inherit;False;FLOAT3;4;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.ScaleAndOffsetNode;69;-608,352;Inherit;False;3;0;FLOAT3;0,0,0;False;1;FLOAT;2;False;2;FLOAT;-1;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;0;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphLitGUI;0;1;New Amplify Shader;94348b07e5e8bab40bd6c8a1e3df54cd;True;ExtraPrePass;0;0;ExtraPrePass;5;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Lit;True;5;True;12;all;0;False;True;1;1;False;;0;False;;0;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;0;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1;0,0;Float;False;True;-1;3;UnityEditor.ShaderGraphLitGUI;0;12;VAT;94348b07e5e8bab40bd6c8a1e3df54cd;True;Forward;0;1;Forward;21;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Lit;True;5;True;12;all;0;False;True;1;1;False;;0;False;;1;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=UniversalForward;False;False;0;;0;0;Standard;43;Lighting Model;0;0;Workflow;1;0;Surface;0;0;  Refraction Model;0;0;  Blend;0;0;Two Sided;1;0;Alpha Clipping;1;0;  Use Shadow Threshold;0;0;Fragment Normal Space,InvertActionOnDeselection;0;0;Forward Only;0;0;Transmission;0;0;  Transmission Shadow;0.5,False,;0;Translucency;0;0;  Translucency Strength;1,False,;0;  Normal Distortion;0.5,False,;0;  Scattering;2,False,;0;  Direct;0.9,False,;0;  Ambient;0.1,False,;0;  Shadow;0.5,False,;0;Cast Shadows;1;0;Receive Shadows;1;0;Receive SSAO;1;0;GPU Instancing;1;0;LOD CrossFade;1;0;Built-in Fog;1;0;_FinalColorxAlpha;0;0;Meta Pass;1;0;Override Baked GI;0;0;Extra Pre Pass;0;0;Tessellation;0;0;  Phong;0;0;  Strength;0.5,False,;0;  Type;0;0;  Tess;16,False,;0;  Min;10,False,;0;  Max;25,False,;0;  Edge Length;16,False,;0;  Max Displacement;25,False,;0;Write Depth;0;0;  Early Z;0;0;Vertex Position,InvertActionOnDeselection;1;0;Debug Display;0;0;Clear Coat;0;0;0;10;False;True;True;True;True;True;True;True;True;True;False;;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;2;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphLitGUI;0;1;New Amplify Shader;94348b07e5e8bab40bd6c8a1e3df54cd;True;ShadowCaster;0;2;ShadowCaster;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Lit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;True;False;False;False;False;0;False;;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=ShadowCaster;False;False;0;;0;0;Standard;0;False;0
@@ -3370,5 +3563,39 @@ Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;6;0,0;Float;False;False;-1;
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;7;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphLitGUI;0;1;New Amplify Shader;94348b07e5e8bab40bd6c8a1e3df54cd;True;GBuffer;0;7;GBuffer;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Lit;True;5;True;12;all;0;False;True;1;1;False;;0;False;;1;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=UniversalGBuffer;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;8;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphLitGUI;0;1;New Amplify Shader;94348b07e5e8bab40bd6c8a1e3df54cd;True;SceneSelectionPass;0;8;SceneSelectionPass;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Lit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;2;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=SceneSelectionPass;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;9;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphLitGUI;0;1;New Amplify Shader;94348b07e5e8bab40bd6c8a1e3df54cd;True;ScenePickingPass;0;9;ScenePickingPass;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Lit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Picking;False;False;0;;0;0;Standard;0;False;0
+WireConnection;59;0;58;0
+WireConnection;28;0;27;0
+WireConnection;28;1;26;0
+WireConnection;29;0;28;0
+WireConnection;24;0;62;0
+WireConnection;61;2;62;0
+WireConnection;31;0;24;2
+WireConnection;31;1;29;0
+WireConnection;32;0;61;0
+WireConnection;36;0;32;1
+WireConnection;36;1;31;0
+WireConnection;34;0;32;0
+WireConnection;34;1;36;0
+WireConnection;38;0;34;0
+WireConnection;65;0;64;0
+WireConnection;65;1;66;0
+WireConnection;63;0;60;0
+WireConnection;63;1;39;0
+WireConnection;67;0;60;0
+WireConnection;67;1;65;0
+WireConnection;17;0;14;0
+WireConnection;17;1;16;0
+WireConnection;17;2;63;5
+WireConnection;68;0;67;5
+WireConnection;20;0;17;0
+WireConnection;70;0;68;0
+WireConnection;70;1;68;2
+WireConnection;70;2;68;1
+WireConnection;21;0;20;0
+WireConnection;21;1;20;2
+WireConnection;21;2;20;1
+WireConnection;69;0;70;0
+WireConnection;1;8;21;0
+WireConnection;1;10;69;0
 ASEEND*/
-//CHKSM=03E7413E65427A8485AA70A04F8661854F1B86E8
+//CHKSM=6C6989668651B646E98039F47B7777CDAE503661
