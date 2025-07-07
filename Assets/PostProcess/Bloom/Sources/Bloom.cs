@@ -6,11 +6,11 @@ using UnityEngine.Rendering.Universal;
 
 public class Bloom : PostProcess<BloomPass>
 {
-    [SerializeField] float threshold;
-    [SerializeField] float intensity;
+    [SerializeField] float threshold = 1;
+    [SerializeField] float intensity = 1;
     [SerializeField] [Range(1, 4)] int downsample = 2;
-    [SerializeField] [Range(0, 8)] int blurIterations = 1;
-    [SerializeField] int blurRadius = 1;
+    [SerializeField] [Range(0, 8)] int blurIterations = 4;
+    [SerializeField] int blurRadius = 3;
 
     protected override void SetupPass(BloomPass pass)
     {
