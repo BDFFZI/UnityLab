@@ -11,7 +11,8 @@ Material:
   m_Shader: {fileID: 4800000, guid: ba2d1521de5bcb34e84f8300c33ba8dd, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
-  m_ValidKeywords: []
+  m_ValidKeywords:
+  - _AUTOPLAY_ON
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -38,7 +39,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _AlphaCutoff: 0.5
-    - _AutoPlay: 0
+    - _AutoPlay: 1
     - _AutoPlaySpeed: 1
     - _Disturbance: 0.6
     - _Offset: 0.78
@@ -57,5 +58,5 @@ Material:
     - _Color: {r: 0, g: 0.70018953, b: 3.9999998, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
     - _NoiseScale: {r: 200, g: 1, b: 0, a: 0}
-    - _NoiseSpeed: {r: 0, g: 25, b: 0, a: 0}
+    - _NoiseSpeed: {r: -0.1, g: 25, b: 0, a: 0}
   m_BuildTextureStacks: []
