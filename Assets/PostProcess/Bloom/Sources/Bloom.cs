@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
+[DefaultExecutionOrder(10)]
 public class Bloom : PostProcess<BloomPass>
 {
     [SerializeField] float threshold = 1;

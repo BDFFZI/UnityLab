@@ -1,4 +1,4 @@
-Shader "Hidden/Bloom"
+	Shader "Hidden/Bloom"
 {
 	Properties
 	{

@@ -7,6 +7,8 @@ using UnityEngine.Rendering.Universal;
 public class PostProcess<TPass> : MonoBehaviour
     where TPass : PostProcessPass, new()
 {
+    public Camera Camera => camera;
+
     protected virtual void SetupPass(TPass pass) { }
 
     new Camera camera;
