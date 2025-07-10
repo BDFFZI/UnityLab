@@ -4,19 +4,22 @@ Shader "GrowingSkybox"
 {
 	Properties
 	{
-		[HideInInspector] _AlphaCutoff("Alpha Cutoff ", Range(0, 1)) = 0.5
 		[HideInInspector] _EmissionColor("Emission Color", Color) = (1,1,1,1)
+		[HideInInspector] _AlphaCutoff("Alpha Cutoff ", Range(0, 1)) = 0.5
 		_Process("Process", Range( 0 , 1)) = 0
 		_Skybox("Skybox", 2D) = "white" {}
 		_Boundary("Boundary", Range( 0 , 1)) = 0.5
 		_WireDensity("WireDensity", Float) = 0
 		_WireThreshold("WireThreshold", Range( 0 , 1)) = 0
+		_WireLength("WireLength", Range( 0.01 , 1)) = 0.5
 		[HDR]_WireColor("WireColor", Color) = (0,0.5723809,2.996078,0)
 		_NoiseTiling("NoiseTiling", Float) = 100
 		_NoiseSpeed("NoiseSpeed", Vector) = (0,1,0,0)
 		_Disturbance("Disturbance", Range( 0 , 1)) = 0
 		[HDR]_EdgeColor("EdgeColor", Color) = (0,2.667793,4,0)
 		[HDR]_FlowColor("FlowColor", Color) = (0,0,0,0)
+		_Alpha("Alpha", Range( 0 , 1)) = 1
+		[Toggle(_CLIPOUTERNOISE_ON)] _ClipOuterNoise("ClipOuterNoise", Float) = 0
 		[Toggle(_AUTOPLAY_ON)] _AutoPlay("AutoPlay", Float) = 0
 		[HideInInspector] _texcoord( "", 2D ) = "white" {}
 
@@ -180,27 +183,24 @@ Shader "GrowingSkybox"
 			HLSLPROGRAM
 
 			
-            #pragma shader_feature_local _RECEIVE_SHADOWS_OFF
-            #pragma multi_compile_instancing
-            #pragma instancing_options renderinglayer
-            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-            #pragma multi_compile_fog
-            #define ASE_FOG 1
-            #define _SURFACE_TYPE_TRANSPARENT 1
-            #define ASE_VERSION 19801
-            #define ASE_SRP_VERSION 140011
+
+			#pragma shader_feature_local _RECEIVE_SHADOWS_OFF
+			#pragma multi_compile_instancing
+			#pragma instancing_options renderinglayer
+			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+			#pragma multi_compile_fog
+			#define ASE_FOG 1
+			#define _SURFACE_TYPE_TRANSPARENT 1
+			#define ASE_VERSION 19801
+			#define ASE_SRP_VERSION 140011
 
 
 			
-            #pragma multi_compile _ DOTS_INSTANCING_ON
-		
 
 			#pragma multi_compile_fragment _ _SCREEN_SPACE_OCCLUSION
 			#pragma multi_compile_fragment _ _DBUFFER_MRT1 _DBUFFER_MRT2 _DBUFFER_MRT3
 
 			
-            #pragma multi_compile_fragment _ _WRITE_RENDERING_LAYERS
-		
 
 			#pragma multi_compile _ DIRLIGHTMAP_COMBINED
             #pragma multi_compile _ LIGHTMAP_ON
@@ -213,8 +213,16 @@ Shader "GrowingSkybox"
 			#define SHADERPASS SHADERPASS_UNLIT
 
 			
+            #if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+			#endif
+		
 
 			
+			#if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
+			#endif
+		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -224,10 +232,12 @@ Shader "GrowingSkybox"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
+			#if ASE_SRP_VERSION >=140010
+			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
+			#endif
+		
 
 			
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
-		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DBuffer.hlsl"
@@ -243,6 +253,7 @@ Shader "GrowingSkybox"
 			#define ASE_NEEDS_FRAG_WORLD_POSITION
 			#define ASE_NEEDS_FRAG_POSITION
 			#pragma shader_feature_local _AUTOPLAY_ON
+			#pragma shader_feature_local _CLIPOUTERNOISE_ON
 
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
@@ -300,6 +311,8 @@ Shader "GrowingSkybox"
 			float _Process;
 			float _WireThreshold;
 			float _WireDensity;
+			float _WireLength;
+			float _Alpha;
 			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
@@ -536,15 +549,24 @@ Shader "GrowingSkybox"
 				float3 EdgeLight186 = ( pow( Distance60 , 500.0 ) * _EdgeColor.rgb );
 				float3 FlowLight189 = ( pow( Noise174 , 4.0 ) * pow( Distance60 , 1.0 ) * _FlowColor.rgb );
 				float3 InnerColor82 = ( tex2D( _Skybox, uv_Skybox ).rgb + EdgeLight186 + FlowLight189 );
-				float3 break67 = abs( (frac( ( input.ase_texcoord6.xyz * _WireDensity ) )*2.0 + -1.0) );
-				float smoothstepResult77 = smoothstep( _WireThreshold , 1.0 , max( max( break67.x , break67.y ) , break67.z ));
+				float2 appendResult119 = (float2(( 2.0 * input.ase_texcoord7.xy.x ) , input.ase_texcoord7.xy.y));
+				float2 break67 = abs( (frac( ( appendResult119 * _WireDensity ) )*2.0 + -1.0) );
+				float smoothstepResult77 = smoothstep( _WireThreshold , 1.0 , max( max( break67.x , break67.y ) , 0.0 ));
 				float WireMask76 = smoothstepResult77;
 				float3 OuterColor83 = ( WireMask76 * _WireColor.rgb );
+				float3 temp_output_85_0 = ( Direction52 > 0.5 ? InnerColor82 : OuterColor83 );
+				
+				#ifdef _CLIPOUTERNOISE_ON
+				float staticSwitch223 = WireMask76;
+				#else
+				float staticSwitch223 = 1.0;
+				#endif
+				float grayscale209 = Luminance(saturate( temp_output_85_0 ));
 				
 				float3 BakedAlbedo = 0;
 				float3 BakedEmission = 0;
-				float3 Color = ( Direction52 > 0.5 ? InnerColor82 : OuterColor83 );
-				float Alpha = ( Direction52 > 0.5 ? 1.0 : Distance60 );
+				float3 Color = temp_output_85_0;
+				float Alpha = pow( ( ( Direction52 > 0.5 ? 1.0 : ( staticSwitch223 * pow( Distance60 , ( 1.0 / _WireLength ) ) ) ) * _Alpha ) , ( ( 1.0 - grayscale209 ) + 1.0 ) );
 				float AlphaClipThreshold = 0.5;
 				float AlphaClipThresholdShadow = 0.5;
 
@@ -610,17 +632,16 @@ Shader "GrowingSkybox"
 			HLSLPROGRAM
 
 			
-            #pragma multi_compile_instancing
-            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-            #define ASE_FOG 1
-            #define _SURFACE_TYPE_TRANSPARENT 1
-            #define ASE_VERSION 19801
-            #define ASE_SRP_VERSION 140011
+
+			#pragma multi_compile_instancing
+			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+			#define ASE_FOG 1
+			#define _SURFACE_TYPE_TRANSPARENT 1
+			#define ASE_VERSION 19801
+			#define ASE_SRP_VERSION 140011
 
 
 			
-            #pragma multi_compile _ DOTS_INSTANCING_ON
-		
 
 			#pragma multi_compile_vertex _ _CASTING_PUNCTUAL_LIGHT_SHADOW
 
@@ -630,6 +651,10 @@ Shader "GrowingSkybox"
 			#define SHADERPASS SHADERPASS_SHADOWCASTER
 
 			
+            #if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+			#endif
+		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -643,6 +668,7 @@ Shader "GrowingSkybox"
 			#define ASE_NEEDS_FRAG_WORLD_POSITION
 			#define ASE_NEEDS_FRAG_POSITION
 			#pragma shader_feature_local _AUTOPLAY_ON
+			#pragma shader_feature_local _CLIPOUTERNOISE_ON
 
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
@@ -657,7 +683,7 @@ Shader "GrowingSkybox"
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -673,6 +699,7 @@ Shader "GrowingSkybox"
 				#endif
 				float3 ase_normal : NORMAL;
 				float4 ase_texcoord3 : TEXCOORD3;
+				float4 ase_texcoord4 : TEXCOORD4;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
@@ -689,6 +716,8 @@ Shader "GrowingSkybox"
 			float _Process;
 			float _WireThreshold;
 			float _WireDensity;
+			float _WireLength;
+			float _Alpha;
 			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
@@ -699,7 +728,8 @@ Shader "GrowingSkybox"
 			#endif
 			CBUFFER_END
 
-			
+			sampler2D _Skybox;
+
 
 			//https://www.shadertoy.com/view/XdXGW8
 			float2 GradientNoiseDir( float2 x )
@@ -734,6 +764,10 @@ Shader "GrowingSkybox"
 
 				output.ase_normal = input.normalOS;
 				output.ase_texcoord3 = input.positionOS;
+				output.ase_texcoord4.xy = input.ase_texcoord.xy;
+				
+				//setting value to unused interpolator channels and avoid initialization warnings
+				output.ase_texcoord4.zw = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -789,7 +823,8 @@ Shader "GrowingSkybox"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -806,7 +841,7 @@ Shader "GrowingSkybox"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord = input.ase_texcoord;
 				return output;
 			}
 
@@ -845,7 +880,7 @@ Shader "GrowingSkybox"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -913,11 +948,27 @@ Shader "GrowingSkybox"
 				float Rate108 = staticSwitch203;
 				float Density39 = saturate( ( ( InitialDensity36 + 1.0 ) - (2.0 + (Rate108 - 0.0) * (0.0 - 2.0) / (1.0 - 0.0)) ) );
 				float Direction52 = step( Threshold55 , Density39 );
+				float2 appendResult119 = (float2(( 2.0 * input.ase_texcoord4.xy.x ) , input.ase_texcoord4.xy.y));
+				float2 break67 = abs( (frac( ( appendResult119 * _WireDensity ) )*2.0 + -1.0) );
+				float smoothstepResult77 = smoothstep( _WireThreshold , 1.0 , max( max( break67.x , break67.y ) , 0.0 ));
+				float WireMask76 = smoothstepResult77;
+				#ifdef _CLIPOUTERNOISE_ON
+				float staticSwitch223 = WireMask76;
+				#else
+				float staticSwitch223 = 1.0;
+				#endif
 				float smoothstepResult62 = smoothstep( ( 1.0 - ( Threshold55 / 2.0 ) ) , 1.0 , ( 1.0 - distance( Threshold55 , Density39 ) ));
 				float Distance60 = smoothstepResult62;
+				float2 uv_Skybox = input.ase_texcoord4.xy * _Skybox_ST.xy + _Skybox_ST.zw;
+				float3 EdgeLight186 = ( pow( Distance60 , 500.0 ) * _EdgeColor.rgb );
+				float3 FlowLight189 = ( pow( Noise174 , 4.0 ) * pow( Distance60 , 1.0 ) * _FlowColor.rgb );
+				float3 InnerColor82 = ( tex2D( _Skybox, uv_Skybox ).rgb + EdgeLight186 + FlowLight189 );
+				float3 OuterColor83 = ( WireMask76 * _WireColor.rgb );
+				float3 temp_output_85_0 = ( Direction52 > 0.5 ? InnerColor82 : OuterColor83 );
+				float grayscale209 = Luminance(saturate( temp_output_85_0 ));
 				
 
-				float Alpha = ( Direction52 > 0.5 ? 1.0 : Distance60 );
+				float Alpha = pow( ( ( Direction52 > 0.5 ? 1.0 : ( staticSwitch223 * pow( Distance60 , ( 1.0 / _WireLength ) ) ) ) * _Alpha ) , ( ( 1.0 - grayscale209 ) + 1.0 ) );
 				float AlphaClipThreshold = 0.5;
 				float AlphaClipThresholdShadow = 0.5;
 
@@ -960,22 +1011,25 @@ Shader "GrowingSkybox"
 			HLSLPROGRAM
 
 			
-            #pragma multi_compile_instancing
-            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-            #define ASE_FOG 1
-            #define _SURFACE_TYPE_TRANSPARENT 1
-            #define ASE_VERSION 19801
-            #define ASE_SRP_VERSION 140011
+
+			#pragma multi_compile_instancing
+			#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+			#define ASE_FOG 1
+			#define _SURFACE_TYPE_TRANSPARENT 1
+			#define ASE_VERSION 19801
+			#define ASE_SRP_VERSION 140011
 
 
 			
-            #pragma multi_compile _ DOTS_INSTANCING_ON
-		
 
 			#pragma vertex vert
 			#pragma fragment frag
 
 			
+            #if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+			#endif
+		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
@@ -989,6 +1043,7 @@ Shader "GrowingSkybox"
 			#define ASE_NEEDS_FRAG_WORLD_POSITION
 			#define ASE_NEEDS_FRAG_POSITION
 			#pragma shader_feature_local _AUTOPLAY_ON
+			#pragma shader_feature_local _CLIPOUTERNOISE_ON
 
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
@@ -1003,7 +1058,7 @@ Shader "GrowingSkybox"
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1019,6 +1074,7 @@ Shader "GrowingSkybox"
 				#endif
 				float3 ase_normal : NORMAL;
 				float4 ase_texcoord3 : TEXCOORD3;
+				float4 ase_texcoord4 : TEXCOORD4;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
@@ -1035,6 +1091,8 @@ Shader "GrowingSkybox"
 			float _Process;
 			float _WireThreshold;
 			float _WireDensity;
+			float _WireLength;
+			float _Alpha;
 			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
@@ -1045,7 +1103,8 @@ Shader "GrowingSkybox"
 			#endif
 			CBUFFER_END
 
-			
+			sampler2D _Skybox;
+
 
 			//https://www.shadertoy.com/view/XdXGW8
 			float2 GradientNoiseDir( float2 x )
@@ -1077,6 +1136,10 @@ Shader "GrowingSkybox"
 
 				output.ase_normal = input.normalOS;
 				output.ase_texcoord3 = input.positionOS;
+				output.ase_texcoord4.xy = input.ase_texcoord.xy;
+				
+				//setting value to unused interpolator channels and avoid initialization warnings
+				output.ase_texcoord4.zw = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -1114,7 +1177,8 @@ Shader "GrowingSkybox"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1131,7 +1195,7 @@ Shader "GrowingSkybox"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord = input.ase_texcoord;
 				return output;
 			}
 
@@ -1170,7 +1234,7 @@ Shader "GrowingSkybox"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -1238,11 +1302,27 @@ Shader "GrowingSkybox"
 				float Rate108 = staticSwitch203;
 				float Density39 = saturate( ( ( InitialDensity36 + 1.0 ) - (2.0 + (Rate108 - 0.0) * (0.0 - 2.0) / (1.0 - 0.0)) ) );
 				float Direction52 = step( Threshold55 , Density39 );
+				float2 appendResult119 = (float2(( 2.0 * input.ase_texcoord4.xy.x ) , input.ase_texcoord4.xy.y));
+				float2 break67 = abs( (frac( ( appendResult119 * _WireDensity ) )*2.0 + -1.0) );
+				float smoothstepResult77 = smoothstep( _WireThreshold , 1.0 , max( max( break67.x , break67.y ) , 0.0 ));
+				float WireMask76 = smoothstepResult77;
+				#ifdef _CLIPOUTERNOISE_ON
+				float staticSwitch223 = WireMask76;
+				#else
+				float staticSwitch223 = 1.0;
+				#endif
 				float smoothstepResult62 = smoothstep( ( 1.0 - ( Threshold55 / 2.0 ) ) , 1.0 , ( 1.0 - distance( Threshold55 , Density39 ) ));
 				float Distance60 = smoothstepResult62;
+				float2 uv_Skybox = input.ase_texcoord4.xy * _Skybox_ST.xy + _Skybox_ST.zw;
+				float3 EdgeLight186 = ( pow( Distance60 , 500.0 ) * _EdgeColor.rgb );
+				float3 FlowLight189 = ( pow( Noise174 , 4.0 ) * pow( Distance60 , 1.0 ) * _FlowColor.rgb );
+				float3 InnerColor82 = ( tex2D( _Skybox, uv_Skybox ).rgb + EdgeLight186 + FlowLight189 );
+				float3 OuterColor83 = ( WireMask76 * _WireColor.rgb );
+				float3 temp_output_85_0 = ( Direction52 > 0.5 ? InnerColor82 : OuterColor83 );
+				float grayscale209 = Luminance(saturate( temp_output_85_0 ));
 				
 
-				float Alpha = ( Direction52 > 0.5 ? 1.0 : Distance60 );
+				float Alpha = pow( ( ( Direction52 > 0.5 ? 1.0 : ( staticSwitch223 * pow( Distance60 , ( 1.0 / _WireLength ) ) ) ) * _Alpha ) , ( ( 1.0 - grayscale209 ) + 1.0 ) );
 				float AlphaClipThreshold = 0.5;
 
 				#ifdef ASE_DEPTH_WRITE_ON
@@ -1279,15 +1359,14 @@ Shader "GrowingSkybox"
 			HLSLPROGRAM
 
 			
-            #define ASE_FOG 1
-            #define _SURFACE_TYPE_TRANSPARENT 1
-            #define ASE_VERSION 19801
-            #define ASE_SRP_VERSION 140011
+
+			#define ASE_FOG 1
+			#define _SURFACE_TYPE_TRANSPARENT 1
+			#define ASE_VERSION 19801
+			#define ASE_SRP_VERSION 140011
 
 
 			
-            #pragma multi_compile _ DOTS_INSTANCING_ON
-		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1297,8 +1376,16 @@ Shader "GrowingSkybox"
 			#define SHADERPASS SHADERPASS_DEPTHONLY
 
 			
+            #if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+			#endif
+		
 
 			
+			#if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
+			#endif
+		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1307,23 +1394,26 @@ Shader "GrowingSkybox"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
+			#if ASE_SRP_VERSION >=140010
+			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
+			#endif
+		
 
 			
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
-		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
 
 			#define ASE_NEEDS_FRAG_POSITION
 			#pragma shader_feature_local _AUTOPLAY_ON
+			#pragma shader_feature_local _CLIPOUTERNOISE_ON
 
 
 			struct Attributes
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1333,6 +1423,7 @@ Shader "GrowingSkybox"
 				float4 ase_texcoord : TEXCOORD0;
 				float3 ase_normal : NORMAL;
 				float4 ase_texcoord1 : TEXCOORD1;
+				float4 ase_texcoord2 : TEXCOORD2;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
@@ -1349,6 +1440,8 @@ Shader "GrowingSkybox"
 			float _Process;
 			float _WireThreshold;
 			float _WireDensity;
+			float _WireLength;
+			float _Alpha;
 			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
@@ -1359,7 +1452,8 @@ Shader "GrowingSkybox"
 			#endif
 			CBUFFER_END
 
-			
+			sampler2D _Skybox;
+
 
 			//https://www.shadertoy.com/view/XdXGW8
 			float2 GradientNoiseDir( float2 x )
@@ -1405,9 +1499,11 @@ Shader "GrowingSkybox"
 				
 				output.ase_normal = input.normalOS;
 				output.ase_texcoord1 = input.positionOS;
+				output.ase_texcoord2.xy = input.ase_texcoord.xy;
 				
 				//setting value to unused interpolator channels and avoid initialization warnings
 				output.ase_texcoord.w = 0;
+				output.ase_texcoord2.zw = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -1437,7 +1533,8 @@ Shader "GrowingSkybox"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1454,7 +1551,7 @@ Shader "GrowingSkybox"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord = input.ase_texcoord;
 				return output;
 			}
 
@@ -1493,7 +1590,7 @@ Shader "GrowingSkybox"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -1541,11 +1638,27 @@ Shader "GrowingSkybox"
 				float Rate108 = staticSwitch203;
 				float Density39 = saturate( ( ( InitialDensity36 + 1.0 ) - (2.0 + (Rate108 - 0.0) * (0.0 - 2.0) / (1.0 - 0.0)) ) );
 				float Direction52 = step( Threshold55 , Density39 );
+				float2 appendResult119 = (float2(( 2.0 * input.ase_texcoord2.xy.x ) , input.ase_texcoord2.xy.y));
+				float2 break67 = abs( (frac( ( appendResult119 * _WireDensity ) )*2.0 + -1.0) );
+				float smoothstepResult77 = smoothstep( _WireThreshold , 1.0 , max( max( break67.x , break67.y ) , 0.0 ));
+				float WireMask76 = smoothstepResult77;
+				#ifdef _CLIPOUTERNOISE_ON
+				float staticSwitch223 = WireMask76;
+				#else
+				float staticSwitch223 = 1.0;
+				#endif
 				float smoothstepResult62 = smoothstep( ( 1.0 - ( Threshold55 / 2.0 ) ) , 1.0 , ( 1.0 - distance( Threshold55 , Density39 ) ));
 				float Distance60 = smoothstepResult62;
+				float2 uv_Skybox = input.ase_texcoord2.xy * _Skybox_ST.xy + _Skybox_ST.zw;
+				float3 EdgeLight186 = ( pow( Distance60 , 500.0 ) * _EdgeColor.rgb );
+				float3 FlowLight189 = ( pow( Noise174 , 4.0 ) * pow( Distance60 , 1.0 ) * _FlowColor.rgb );
+				float3 InnerColor82 = ( tex2D( _Skybox, uv_Skybox ).rgb + EdgeLight186 + FlowLight189 );
+				float3 OuterColor83 = ( WireMask76 * _WireColor.rgb );
+				float3 temp_output_85_0 = ( Direction52 > 0.5 ? InnerColor82 : OuterColor83 );
+				float grayscale209 = Luminance(saturate( temp_output_85_0 ));
 				
 
-				surfaceDescription.Alpha = ( Direction52 > 0.5 ? 1.0 : Distance60 );
+				surfaceDescription.Alpha = pow( ( ( Direction52 > 0.5 ? 1.0 : ( staticSwitch223 * pow( Distance60 , ( 1.0 / _WireLength ) ) ) ) * _Alpha ) , ( ( 1.0 - grayscale209 ) + 1.0 ) );
 				surfaceDescription.AlphaClipThreshold = 0.5;
 
 				#if _ALPHATEST_ON
@@ -1574,15 +1687,14 @@ Shader "GrowingSkybox"
 			HLSLPROGRAM
 
 			
-            #define ASE_FOG 1
-            #define _SURFACE_TYPE_TRANSPARENT 1
-            #define ASE_VERSION 19801
-            #define ASE_SRP_VERSION 140011
+
+			#define ASE_FOG 1
+			#define _SURFACE_TYPE_TRANSPARENT 1
+			#define ASE_VERSION 19801
+			#define ASE_SRP_VERSION 140011
 
 
 			
-            #pragma multi_compile _ DOTS_INSTANCING_ON
-		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1593,8 +1705,16 @@ Shader "GrowingSkybox"
 			#define SHADERPASS SHADERPASS_DEPTHONLY
 
 			
+            #if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+			#endif
+		
 
 			
+			#if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
+			#endif
+		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1603,10 +1723,12 @@ Shader "GrowingSkybox"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
+			#if ASE_SRP_VERSION >=140010
+			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
+			#endif
+		
 
 			
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
-		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
@@ -1617,13 +1739,14 @@ Shader "GrowingSkybox"
 
 			#define ASE_NEEDS_FRAG_POSITION
 			#pragma shader_feature_local _AUTOPLAY_ON
+			#pragma shader_feature_local _CLIPOUTERNOISE_ON
 
 
 			struct Attributes
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1633,6 +1756,7 @@ Shader "GrowingSkybox"
 				float4 ase_texcoord : TEXCOORD0;
 				float3 ase_normal : NORMAL;
 				float4 ase_texcoord1 : TEXCOORD1;
+				float4 ase_texcoord2 : TEXCOORD2;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
@@ -1649,6 +1773,8 @@ Shader "GrowingSkybox"
 			float _Process;
 			float _WireThreshold;
 			float _WireDensity;
+			float _WireLength;
+			float _Alpha;
 			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
@@ -1659,7 +1785,8 @@ Shader "GrowingSkybox"
 			#endif
 			CBUFFER_END
 
-			
+			sampler2D _Skybox;
+
 
 			//https://www.shadertoy.com/view/XdXGW8
 			float2 GradientNoiseDir( float2 x )
@@ -1704,9 +1831,11 @@ Shader "GrowingSkybox"
 				
 				output.ase_normal = input.normalOS;
 				output.ase_texcoord1 = input.positionOS;
+				output.ase_texcoord2.xy = input.ase_texcoord.xy;
 				
 				//setting value to unused interpolator channels and avoid initialization warnings
 				output.ase_texcoord.w = 0;
+				output.ase_texcoord2.zw = 0;
 
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
@@ -1734,7 +1863,8 @@ Shader "GrowingSkybox"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1751,7 +1881,7 @@ Shader "GrowingSkybox"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord = input.ase_texcoord;
 				return output;
 			}
 
@@ -1790,7 +1920,7 @@ Shader "GrowingSkybox"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -1838,11 +1968,27 @@ Shader "GrowingSkybox"
 				float Rate108 = staticSwitch203;
 				float Density39 = saturate( ( ( InitialDensity36 + 1.0 ) - (2.0 + (Rate108 - 0.0) * (0.0 - 2.0) / (1.0 - 0.0)) ) );
 				float Direction52 = step( Threshold55 , Density39 );
+				float2 appendResult119 = (float2(( 2.0 * input.ase_texcoord2.xy.x ) , input.ase_texcoord2.xy.y));
+				float2 break67 = abs( (frac( ( appendResult119 * _WireDensity ) )*2.0 + -1.0) );
+				float smoothstepResult77 = smoothstep( _WireThreshold , 1.0 , max( max( break67.x , break67.y ) , 0.0 ));
+				float WireMask76 = smoothstepResult77;
+				#ifdef _CLIPOUTERNOISE_ON
+				float staticSwitch223 = WireMask76;
+				#else
+				float staticSwitch223 = 1.0;
+				#endif
 				float smoothstepResult62 = smoothstep( ( 1.0 - ( Threshold55 / 2.0 ) ) , 1.0 , ( 1.0 - distance( Threshold55 , Density39 ) ));
 				float Distance60 = smoothstepResult62;
+				float2 uv_Skybox = input.ase_texcoord2.xy * _Skybox_ST.xy + _Skybox_ST.zw;
+				float3 EdgeLight186 = ( pow( Distance60 , 500.0 ) * _EdgeColor.rgb );
+				float3 FlowLight189 = ( pow( Noise174 , 4.0 ) * pow( Distance60 , 1.0 ) * _FlowColor.rgb );
+				float3 InnerColor82 = ( tex2D( _Skybox, uv_Skybox ).rgb + EdgeLight186 + FlowLight189 );
+				float3 OuterColor83 = ( WireMask76 * _WireColor.rgb );
+				float3 temp_output_85_0 = ( Direction52 > 0.5 ? InnerColor82 : OuterColor83 );
+				float grayscale209 = Luminance(saturate( temp_output_85_0 ));
 				
 
-				surfaceDescription.Alpha = ( Direction52 > 0.5 ? 1.0 : Distance60 );
+				surfaceDescription.Alpha = pow( ( ( Direction52 > 0.5 ? 1.0 : ( staticSwitch223 * pow( Distance60 , ( 1.0 / _WireLength ) ) ) ) * _Alpha ) , ( ( 1.0 - grayscale209 ) + 1.0 ) );
 				surfaceDescription.AlphaClipThreshold = 0.5;
 
 				#if _ALPHATEST_ON
@@ -1875,23 +2021,20 @@ Shader "GrowingSkybox"
 			HLSLPROGRAM
 
 			
-            #pragma multi_compile_instancing
-            #pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
-            #define ASE_FOG 1
-            #define _SURFACE_TYPE_TRANSPARENT 1
-            #define ASE_VERSION 19801
-            #define ASE_SRP_VERSION 140011
+
+        	#pragma multi_compile_instancing
+        	#pragma multi_compile_fragment _ LOD_FADE_CROSSFADE
+        	#define ASE_FOG 1
+        	#define _SURFACE_TYPE_TRANSPARENT 1
+        	#define ASE_VERSION 19801
+        	#define ASE_SRP_VERSION 140011
 
 
 			
-            #pragma multi_compile _ DOTS_INSTANCING_ON
-		
 
         	#pragma multi_compile_fragment _ _GBUFFER_NORMALS_OCT
 
 			
-            #pragma multi_compile_fragment _ _WRITE_RENDERING_LAYERS
-		
 
 			#pragma vertex vert
 			#pragma fragment frag
@@ -1903,8 +2046,16 @@ Shader "GrowingSkybox"
 			#define SHADERPASS SHADERPASS_DEPTHNORMALSONLY
 
 			
+            #if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DOTS.hlsl"
+			#endif
+		
 
 			
+			#if ASE_SRP_VERSION >=140007
+			#include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
+			#endif
+		
 
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Color.hlsl"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Texture.hlsl"
@@ -1913,10 +2064,12 @@ Shader "GrowingSkybox"
 			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/TextureStack.hlsl"
 
 			
+			#if ASE_SRP_VERSION >=140010
+			#include_with_pragmas "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRenderingKeywords.hlsl"
+			#endif
+		
 
 			
-			#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/FoveatedRendering.hlsl"
-		
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/ShaderGraphFunctions.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/Editor/ShaderGraph/Includes/ShaderPass.hlsl"
@@ -1928,6 +2081,7 @@ Shader "GrowingSkybox"
 			#define ASE_NEEDS_FRAG_WORLD_POSITION
 			#define ASE_NEEDS_FRAG_POSITION
 			#pragma shader_feature_local _AUTOPLAY_ON
+			#pragma shader_feature_local _CLIPOUTERNOISE_ON
 
 
 			#if defined(ASE_EARLY_Z_DEPTH_OPTIMIZE) && (SHADER_TARGET >= 45)
@@ -1942,7 +2096,7 @@ Shader "GrowingSkybox"
 			{
 				float4 positionOS : POSITION;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -1954,6 +2108,7 @@ Shader "GrowingSkybox"
 				float3 normalWS : TEXCOORD2;
 				float3 ase_normal : NORMAL;
 				float4 ase_texcoord3 : TEXCOORD3;
+				float4 ase_texcoord4 : TEXCOORD4;
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 				UNITY_VERTEX_OUTPUT_STEREO
 			};
@@ -1970,6 +2125,8 @@ Shader "GrowingSkybox"
 			float _Process;
 			float _WireThreshold;
 			float _WireDensity;
+			float _WireLength;
+			float _Alpha;
 			#ifdef ASE_TESSELLATION
 				float _TessPhongStrength;
 				float _TessValue;
@@ -1980,7 +2137,8 @@ Shader "GrowingSkybox"
 			#endif
 			CBUFFER_END
 
-			
+			sampler2D _Skybox;
+
 
 			//https://www.shadertoy.com/view/XdXGW8
 			float2 GradientNoiseDir( float2 x )
@@ -2020,6 +2178,10 @@ Shader "GrowingSkybox"
 
 				output.ase_normal = input.normalOS;
 				output.ase_texcoord3 = input.positionOS;
+				output.ase_texcoord4.xy = input.ase_texcoord.xy;
+				
+				//setting value to unused interpolator channels and avoid initialization warnings
+				output.ase_texcoord4.zw = 0;
 				#ifdef ASE_ABSOLUTE_VERTEX_POS
 					float3 defaultVertexValue = input.positionOS.xyz;
 				#else
@@ -2050,7 +2212,8 @@ Shader "GrowingSkybox"
 			{
 				float4 positionOS : INTERNALTESSPOS;
 				float3 normalOS : NORMAL;
-				
+				float4 ase_texcoord : TEXCOORD0;
+
 				UNITY_VERTEX_INPUT_INSTANCE_ID
 			};
 
@@ -2067,7 +2230,7 @@ Shader "GrowingSkybox"
 				UNITY_TRANSFER_INSTANCE_ID(input, output);
 				output.positionOS = input.positionOS;
 				output.normalOS = input.normalOS;
-				
+				output.ase_texcoord = input.ase_texcoord;
 				return output;
 			}
 
@@ -2106,7 +2269,7 @@ Shader "GrowingSkybox"
 				Attributes output = (Attributes) 0;
 				output.positionOS = patch[0].positionOS * bary.x + patch[1].positionOS * bary.y + patch[2].positionOS * bary.z;
 				output.normalOS = patch[0].normalOS * bary.x + patch[1].normalOS * bary.y + patch[2].normalOS * bary.z;
-				
+				output.ase_texcoord = patch[0].ase_texcoord * bary.x + patch[1].ase_texcoord * bary.y + patch[2].ase_texcoord * bary.z;
 				#if defined(ASE_PHONG_TESSELLATION)
 				float3 pp[3];
 				for (int i = 0; i < 3; ++i)
@@ -2166,11 +2329,27 @@ Shader "GrowingSkybox"
 				float Rate108 = staticSwitch203;
 				float Density39 = saturate( ( ( InitialDensity36 + 1.0 ) - (2.0 + (Rate108 - 0.0) * (0.0 - 2.0) / (1.0 - 0.0)) ) );
 				float Direction52 = step( Threshold55 , Density39 );
+				float2 appendResult119 = (float2(( 2.0 * input.ase_texcoord4.xy.x ) , input.ase_texcoord4.xy.y));
+				float2 break67 = abs( (frac( ( appendResult119 * _WireDensity ) )*2.0 + -1.0) );
+				float smoothstepResult77 = smoothstep( _WireThreshold , 1.0 , max( max( break67.x , break67.y ) , 0.0 ));
+				float WireMask76 = smoothstepResult77;
+				#ifdef _CLIPOUTERNOISE_ON
+				float staticSwitch223 = WireMask76;
+				#else
+				float staticSwitch223 = 1.0;
+				#endif
 				float smoothstepResult62 = smoothstep( ( 1.0 - ( Threshold55 / 2.0 ) ) , 1.0 , ( 1.0 - distance( Threshold55 , Density39 ) ));
 				float Distance60 = smoothstepResult62;
+				float2 uv_Skybox = input.ase_texcoord4.xy * _Skybox_ST.xy + _Skybox_ST.zw;
+				float3 EdgeLight186 = ( pow( Distance60 , 500.0 ) * _EdgeColor.rgb );
+				float3 FlowLight189 = ( pow( Noise174 , 4.0 ) * pow( Distance60 , 1.0 ) * _FlowColor.rgb );
+				float3 InnerColor82 = ( tex2D( _Skybox, uv_Skybox ).rgb + EdgeLight186 + FlowLight189 );
+				float3 OuterColor83 = ( WireMask76 * _WireColor.rgb );
+				float3 temp_output_85_0 = ( Direction52 > 0.5 ? InnerColor82 : OuterColor83 );
+				float grayscale209 = Luminance(saturate( temp_output_85_0 ));
 				
 
-				float Alpha = ( Direction52 > 0.5 ? 1.0 : Distance60 );
+				float Alpha = pow( ( ( Direction52 > 0.5 ? 1.0 : ( staticSwitch223 * pow( Distance60 , ( 1.0 / _WireLength ) ) ) ) * _Alpha ) , ( ( 1.0 - grayscale209 ) + 1.0 ) );
 				float AlphaClipThreshold = 0.5;
 
 				#ifdef ASE_DEPTH_WRITE_ON
@@ -2223,8 +2402,8 @@ Node;AmplifyShaderEditor.NormalVertexDataNode;161;-3008,-1632;Inherit;False;0;5;
 Node;AmplifyShaderEditor.AbsOpNode;163;-2752,-1696;Inherit;False;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.PosVertexDataNode;152;-3456,-1360;Inherit;False;0;0;5;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.SimpleTimeNode;182;-3216,-1200;Inherit;False;1;0;FLOAT;1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;153;-3600,-1168;Inherit;False;Property;_NoiseTiling;NoiseTiling;6;0;Create;True;0;0;0;False;0;False;100;20;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.Vector3Node;178;-3216,-1104;Inherit;False;Property;_NoiseSpeed;NoiseSpeed;7;0;Create;True;0;0;0;False;0;False;0,1,0;0,1,0;0;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
+Node;AmplifyShaderEditor.RangedFloatNode;153;-3600,-1168;Inherit;False;Property;_NoiseTiling;NoiseTiling;7;0;Create;True;0;0;0;False;0;False;100;20;0;0;0;1;FLOAT;0
+Node;AmplifyShaderEditor.Vector3Node;178;-3216,-1104;Inherit;False;Property;_NoiseSpeed;NoiseSpeed;8;0;Create;True;0;0;0;False;0;False;0,1,0;0,1,0;0;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
 Node;AmplifyShaderEditor.BreakToComponentsNode;165;-2608,-1568;Inherit;False;FLOAT3;1;0;FLOAT3;0,0,0;False;16;FLOAT;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT;5;FLOAT;6;FLOAT;7;FLOAT;8;FLOAT;9;FLOAT;10;FLOAT;11;FLOAT;12;FLOAT;13;FLOAT;14;FLOAT;15
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;154;-3152,-1360;Inherit;False;2;2;0;FLOAT3;0,0,0;False;1;FLOAT;0;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;184;-2960,-1120;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT3;0,0,0;False;1;FLOAT3;0
@@ -2250,7 +2429,7 @@ Node;AmplifyShaderEditor.GetLocalVarNode;179;-3488,-512;Inherit;False;174;Noise;
 Node;AmplifyShaderEditor.WorldPosInputsNode;14;-5584,-1680;Inherit;False;0;4;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3
 Node;AmplifyShaderEditor.BreakToComponentsNode;24;-5520,-1504;Inherit;False;FLOAT3;1;0;FLOAT3;0,0,0;False;16;FLOAT;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT;5;FLOAT;6;FLOAT;7;FLOAT;8;FLOAT;9;FLOAT;10;FLOAT;11;FLOAT;12;FLOAT;13;FLOAT;14;FLOAT;15
 Node;AmplifyShaderEditor.ScaleAndOffsetNode;128;-3264,-512;Inherit;False;3;0;FLOAT;0;False;1;FLOAT;2;False;2;FLOAT;-1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;126;-3312,-608;Inherit;False;Property;_Disturbance;Disturbance;8;0;Create;True;0;0;0;False;0;False;0;0.05;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;126;-3312,-608;Inherit;False;Property;_Disturbance;Disturbance;9;0;Create;True;0;0;0;False;0;False;0;0.05;0;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleSubtractOpNode;16;-5344,-1584;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.BreakToComponentsNode;21;-5520,-1360;Inherit;False;FLOAT3;1;0;FLOAT3;0,0,0;False;16;FLOAT;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT;5;FLOAT;6;FLOAT;7;FLOAT;8;FLOAT;9;FLOAT;10;FLOAT;11;FLOAT;12;FLOAT;13;FLOAT;14;FLOAT;15
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;127;-3024,-576;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
@@ -2262,7 +2441,7 @@ Node;AmplifyShaderEditor.GetLocalVarNode;139;-4928,-1440;Inherit;False;138;Distu
 Node;AmplifyShaderEditor.FractNode;121;-5568,464;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;27;-5808,272;Inherit;False;Property;_Process;Process;0;0;Create;True;0;0;0;False;0;False;0;0.5774348;0;1;0;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleAddOpNode;125;-4688,-1536;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.StaticSwitch;203;-5344,384;Inherit;False;Property;_AutoPlay;AutoPlay;11;0;Create;True;0;0;0;False;0;False;0;0;0;True;;Toggle;2;Key0;Key1;Create;True;True;All;9;1;FLOAT;0;False;0;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;4;FLOAT;0;False;5;FLOAT;0;False;6;FLOAT;0;False;7;FLOAT;0;False;8;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.StaticSwitch;203;-5344,384;Inherit;False;Property;_AutoPlay;AutoPlay;14;0;Create;True;0;0;0;False;0;False;0;0;0;True;;Toggle;2;Key0;Key1;Create;True;True;All;9;1;FLOAT;0;False;0;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;4;FLOAT;0;False;5;FLOAT;0;False;6;FLOAT;0;False;7;FLOAT;0;False;8;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.CommentaryNode;45;-5904,-1152;Inherit;False;1364;435;Density;7;29;33;32;30;35;39;109;;1,1,1,1;0;0
 Node;AmplifyShaderEditor.RegisterLocalVarNode;36;-4528,-1536;Inherit;False;InitialDensity;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.RegisterLocalVarNode;108;-4960,464;Inherit;False;Rate;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
@@ -2270,74 +2449,88 @@ Node;AmplifyShaderEditor.GetLocalVarNode;29;-5648,-1104;Inherit;False;36;Initial
 Node;AmplifyShaderEditor.GetLocalVarNode;109;-5792,-928;Inherit;False;108;Rate;1;0;OBJECT;;False;1;FLOAT;0
 Node;AmplifyShaderEditor.TFHCRemapNode;33;-5472,-928;Inherit;False;5;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;1;False;3;FLOAT;2;False;4;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleAddOpNode;32;-5424,-1104;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;1;False;1;FLOAT;0
+Node;AmplifyShaderEditor.CommentaryNode;81;-3728,-192;Inherit;False;2400.233;762.8857;WireMask;15;78;118;119;115;114;79;69;70;71;67;74;75;77;76;73;;1,1,1,1;0;0
 Node;AmplifyShaderEditor.SimpleSubtractOpNode;30;-5184,-1024;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.TexCoordVertexDataNode;114;-3520,128;Inherit;False;0;2;0;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
 Node;AmplifyShaderEditor.SaturateNode;35;-4992,-1008;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.RangedFloatNode;46;-5328,672;Inherit;False;Property;_Boundary;Boundary;2;0;Create;True;0;0;0;False;0;False;0.5;0.5;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.SimpleMultiplyOpNode;115;-3296,96;Inherit;False;2;2;0;FLOAT;2;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.CommentaryNode;66;-5904,-672;Inherit;False;1700;608;DirectionAndLength;11;49;54;43;52;56;59;64;62;65;63;60;;1,1,1,1;0;0
 Node;AmplifyShaderEditor.RegisterLocalVarNode;39;-4784,-1008;Inherit;False;Density;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.RegisterLocalVarNode;55;-4960,672;Inherit;False;Threshold;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;78;-3152,416;Inherit;False;Property;_WireDensity;WireDensity;3;0;Create;True;0;0;0;False;0;False;0;40;0;0;0;1;FLOAT;0
+Node;AmplifyShaderEditor.DynamicAppendNode;119;-3136,128;Inherit;False;FLOAT2;4;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;1;FLOAT2;0
 Node;AmplifyShaderEditor.GetLocalVarNode;43;-5856,-352;Inherit;False;39;Density;1;0;OBJECT;;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;56;-5856,-528;Inherit;False;55;Threshold;1;0;OBJECT;;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;63;-5264,-448;Inherit;False;55;Threshold;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.SimpleMultiplyOpNode;79;-2944,-16;Inherit;False;2;2;0;FLOAT2;0,0;False;1;FLOAT;0;False;1;FLOAT2;0
 Node;AmplifyShaderEditor.DistanceOpNode;54;-5520,-608;Inherit;True;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleDivideOpNode;64;-5056,-448;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;2;False;1;FLOAT;0
+Node;AmplifyShaderEditor.FractNode;69;-2768,-16;Inherit;False;1;0;FLOAT2;0,0;False;1;FLOAT2;0
 Node;AmplifyShaderEditor.OneMinusNode;59;-5184,-608;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.OneMinusNode;65;-4912,-448;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.StepOpNode;49;-5520,-304;Inherit;True;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.ScaleAndOffsetNode;70;-2624,-16;Inherit;False;3;0;FLOAT2;0,0;False;1;FLOAT;2;False;2;FLOAT;-1;False;1;FLOAT2;0
 Node;AmplifyShaderEditor.SmoothstepOpNode;62;-4688,-512;Inherit;False;3;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RegisterLocalVarNode;52;-5200,-304;Inherit;False;Direction;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.AbsOpNode;71;-2400,-16;Inherit;False;1;0;FLOAT2;0,0;False;1;FLOAT2;0
 Node;AmplifyShaderEditor.RegisterLocalVarNode;60;-4448,-592;Inherit;False;Distance;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.CommentaryNode;201;-4928,1008;Inherit;False;852;363;OuterColor;4;93;94;95;83;;1,1,1,1;0;0
-Node;AmplifyShaderEditor.CommentaryNode;200;-6112,2080;Inherit;False;1028;499;InnerColor;5;82;99;187;194;10;;1,1,1,1;0;0
 Node;AmplifyShaderEditor.CommentaryNode;199;-6112,1488;Inherit;False;1054.751;549.49;FlowLight;7;189;193;190;197;192;198;196;;1,1,1,1;0;0
 Node;AmplifyShaderEditor.CommentaryNode;188;-6112,1008;Inherit;False;964;443;EdgeLight;5;97;104;100;98;186;;1,1,1,1;0;0
-Node;AmplifyShaderEditor.CommentaryNode;81;-3728,-192;Inherit;False;2400.233;762.8857;WireMask;15;78;118;119;115;114;79;69;70;71;67;74;75;77;76;73;;1,1,1,1;0;0
-Node;AmplifyShaderEditor.GetLocalVarNode;90;-880,128;Inherit;False;52;Direction;1;0;OBJECT;;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;13;-848,256;Inherit;False;Constant;_Float0;Float 0;1;0;Create;True;0;0;0;False;0;False;1;0;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.GetLocalVarNode;92;-864,368;Inherit;False;60;Distance;1;0;OBJECT;;False;1;FLOAT;0
-Node;AmplifyShaderEditor.GetLocalVarNode;86;-864,-176;Inherit;False;82;InnerColor;1;0;OBJECT;;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.GetLocalVarNode;88;-864,-80;Inherit;False;83;OuterColor;1;0;OBJECT;;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.Compare;85;-560,-240;Inherit;False;2;4;0;FLOAT;0;False;1;FLOAT;0.5;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.GetLocalVarNode;61;-864,-320;Inherit;False;52;Direction;1;0;OBJECT;;False;1;FLOAT;0
-Node;AmplifyShaderEditor.Compare;89;-576,208;Inherit;False;2;4;0;FLOAT;0;False;1;FLOAT;0.5;False;2;FLOAT;0;False;3;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;73;-2224,256;Inherit;False;Property;_WireThreshold;WireThreshold;4;0;Create;True;0;0;0;False;0;False;0;0.9;0;1;0;1;FLOAT;0
-Node;AmplifyShaderEditor.RegisterLocalVarNode;76;-1568,128;Inherit;False;WireMask;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.SmoothstepOpNode;77;-1792,128;Inherit;False;3;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;1;False;1;FLOAT;0
-Node;AmplifyShaderEditor.SimpleMaxOpNode;75;-1920,32;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.BreakToComponentsNode;67;-2256,-16;Inherit;False;FLOAT2;1;0;FLOAT2;0,0;False;16;FLOAT;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT;5;FLOAT;6;FLOAT;7;FLOAT;8;FLOAT;9;FLOAT;10;FLOAT;11;FLOAT;12;FLOAT;13;FLOAT;14;FLOAT;15
 Node;AmplifyShaderEditor.SimpleMaxOpNode;74;-2096,-16;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.BreakToComponentsNode;67;-2256,-16;Inherit;False;FLOAT3;1;0;FLOAT3;0,0,0;False;16;FLOAT;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT;5;FLOAT;6;FLOAT;7;FLOAT;8;FLOAT;9;FLOAT;10;FLOAT;11;FLOAT;12;FLOAT;13;FLOAT;14;FLOAT;15
-Node;AmplifyShaderEditor.AbsOpNode;71;-2400,-16;Inherit;False;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.ScaleAndOffsetNode;70;-2624,-16;Inherit;False;3;0;FLOAT3;0,0,0;False;1;FLOAT;2;False;2;FLOAT;-1;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.FractNode;69;-2768,-16;Inherit;False;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode;79;-2944,-16;Inherit;False;2;2;0;FLOAT3;0,0,0;False;1;FLOAT;0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.RangedFloatNode;78;-3152,416;Inherit;False;Property;_WireDensity;WireDensity;3;0;Create;True;0;0;0;False;0;False;0;40;0;0;0;1;FLOAT;0
-Node;AmplifyShaderEditor.PosVertexDataNode;118;-3296,-96;Inherit;False;0;0;5;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.DynamicAppendNode;119;-3136,128;Inherit;False;FLOAT2;4;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;1;FLOAT2;0
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode;115;-3296,96;Inherit;False;2;2;0;FLOAT;2;False;1;FLOAT;0;False;1;FLOAT;0
-Node;AmplifyShaderEditor.TexCoordVertexDataNode;114;-3520,128;Inherit;False;0;2;0;5;FLOAT2;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
-Node;AmplifyShaderEditor.GetLocalVarNode;140;-416,-32;Inherit;False;138;Disturbance;1;0;OBJECT;;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RangedFloatNode;141;-384,48;Inherit;False;Constant;_Float1;Float 1;7;0;Create;True;0;0;0;False;0;False;1;0;0;0;0;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;97;-6064,1056;Inherit;False;60;Distance;1;0;OBJECT;;False;1;FLOAT;0
-Node;AmplifyShaderEditor.PowerNode;104;-5808,1056;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;500;False;1;FLOAT;0
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode;100;-5600,1136;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.RegisterLocalVarNode;186;-5392,1136;Inherit;False;EdgeLight;-1;True;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.RegisterLocalVarNode;189;-5312,1536;Inherit;False;FlowLight;-1;True;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.SimpleMultiplyOpNode;193;-5472,1648;Inherit;False;3;3;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT3;0,0,0;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.GetLocalVarNode;190;-5968,1552;Inherit;False;174;Noise;1;0;OBJECT;;False;1;FLOAT;0
 Node;AmplifyShaderEditor.GetLocalVarNode;197;-6064,1664;Inherit;False;60;Distance;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;73;-2224,256;Inherit;False;Property;_WireThreshold;WireThreshold;4;0;Create;True;0;0;0;False;0;False;0;0.9;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.SimpleMaxOpNode;75;-1920,32;Inherit;False;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.PowerNode;104;-5808,1056;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;500;False;1;FLOAT;0
 Node;AmplifyShaderEditor.PowerNode;198;-5792,1664;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;1;False;1;FLOAT;0
 Node;AmplifyShaderEditor.PowerNode;196;-5744,1552;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;4;False;1;FLOAT;0
-Node;AmplifyShaderEditor.RegisterLocalVarNode;82;-5328,2160;Inherit;False;InnerColor;-1;True;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.SimpleAddOpNode;99;-5552,2368;Inherit;False;3;3;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;2;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.ColorNode;98;-5872,1216;Inherit;False;Property;_EdgeColor;EdgeColor;10;1;[HDR];Create;True;0;0;0;False;0;False;0,2.667793,4,0;0,2.667793,4,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
+Node;AmplifyShaderEditor.ColorNode;192;-5808,1792;Inherit;False;Property;_FlowColor;FlowColor;11;1;[HDR];Create;True;0;0;0;False;0;False;0,0,0,0;0,0.5596852,1,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
+Node;AmplifyShaderEditor.SmoothstepOpNode;77;-1792,128;Inherit;False;3;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT;1;False;1;FLOAT;0
+Node;AmplifyShaderEditor.SimpleMultiplyOpNode;100;-5600,1136;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.SimpleMultiplyOpNode;193;-5472,1648;Inherit;False;3;3;0;FLOAT;0;False;1;FLOAT;0;False;2;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.CommentaryNode;201;-4928,1008;Inherit;False;852;363;OuterColor;4;93;94;95;83;;1,1,1,1;0;0
+Node;AmplifyShaderEditor.CommentaryNode;200;-6112,2080;Inherit;False;1028;499;InnerColor;5;82;99;187;194;10;;1,1,1,1;0;0
+Node;AmplifyShaderEditor.RegisterLocalVarNode;76;-1568,128;Inherit;False;WireMask;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RegisterLocalVarNode;186;-5392,1136;Inherit;False;EdgeLight;-1;True;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.RegisterLocalVarNode;189;-5312,1536;Inherit;False;FlowLight;-1;True;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.GetLocalVarNode;93;-4832,1056;Inherit;False;76;WireMask;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.ColorNode;94;-4880,1136;Inherit;False;Property;_WireColor;WireColor;6;1;[HDR];Create;True;0;0;0;False;0;False;0,0.5723809,2.996078,0;0,0.5723809,2.996078,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
 Node;AmplifyShaderEditor.GetLocalVarNode;187;-5968,2368;Inherit;False;186;EdgeLight;1;0;OBJECT;;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.GetLocalVarNode;194;-5968,2464;Inherit;False;189;FlowLight;1;0;OBJECT;;False;1;FLOAT3;0
 Node;AmplifyShaderEditor.SamplerNode;10;-6064,2128;Inherit;True;Property;_Skybox;Skybox;1;0;Create;True;0;0;0;False;0;False;-1;None;e650ca20e8e3d8549a1ffc0bb29ff740;True;0;False;white;Auto;False;Object;-1;Auto;Texture2D;8;0;SAMPLER2D;;False;1;FLOAT2;0,0;False;2;FLOAT;0;False;3;FLOAT2;0,0;False;4;FLOAT2;0,0;False;5;FLOAT;1;False;6;FLOAT;0;False;7;SAMPLERSTATE;;False;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.GetLocalVarNode;93;-4832,1056;Inherit;False;76;WireMask;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.StepOpNode;49;-5520,-304;Inherit;True;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.SimpleMultiplyOpNode;95;-4560,1104;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.SimpleAddOpNode;99;-5552,2368;Inherit;False;3;3;0;FLOAT3;0,0,0;False;1;FLOAT3;0,0,0;False;2;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.RegisterLocalVarNode;52;-5200,-304;Inherit;False;Direction;-1;True;1;0;FLOAT;0;False;1;FLOAT;0
 Node;AmplifyShaderEditor.RegisterLocalVarNode;83;-4320,1104;Inherit;False;OuterColor;-1;True;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
-Node;AmplifyShaderEditor.ColorNode;98;-5872,1216;Inherit;False;Property;_EdgeColor;EdgeColor;9;1;[HDR];Create;True;0;0;0;False;0;False;0,2.667793,4,0;0,2.667793,4,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.ColorNode;192;-5808,1792;Inherit;False;Property;_FlowColor;FlowColor;10;1;[HDR];Create;True;0;0;0;False;0;False;0,0,0,0;0,0.5596852,1,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
-Node;AmplifyShaderEditor.ColorNode;94;-4880,1136;Inherit;False;Property;_WireColor;WireColor;5;1;[HDR];Create;True;0;0;0;False;0;False;0,0.5723809,2.996078,0;0,0.5723809,2.996078,0;True;True;0;6;COLOR;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4;FLOAT3;5
+Node;AmplifyShaderEditor.RegisterLocalVarNode;82;-5328,2160;Inherit;False;InnerColor;-1;True;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.GetLocalVarNode;86;-864,-176;Inherit;False;82;InnerColor;1;0;OBJECT;;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.GetLocalVarNode;61;-864,-320;Inherit;False;52;Direction;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.GetLocalVarNode;88;-848,-48;Inherit;False;83;OuterColor;1;0;OBJECT;;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.RangedFloatNode;216;-1472,672;Inherit;False;Property;_WireLength;WireLength;5;0;Create;True;0;0;0;False;0;False;0.5;1;0.01;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.Compare;85;-560,-240;Inherit;False;2;4;0;FLOAT;0;False;1;FLOAT;0.5;False;2;FLOAT3;0,0,0;False;3;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.SimpleDivideOpNode;219;-1056,608;Inherit;False;2;0;FLOAT;1;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.GetLocalVarNode;92;-1248,512;Inherit;False;60;Distance;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.GetLocalVarNode;221;-1248,416;Inherit;False;76;WireMask;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;226;-1232,320;Inherit;False;Constant;_Float2;Float 2;15;0;Create;True;0;0;0;False;0;False;1;0;0;0;0;1;FLOAT;0
+Node;AmplifyShaderEditor.SaturateNode;214;-160,-16;Inherit;False;1;0;FLOAT3;0,0,0;False;1;FLOAT3;0
+Node;AmplifyShaderEditor.PowerNode;204;-912,496;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;5;False;1;FLOAT;0
+Node;AmplifyShaderEditor.StaticSwitch;223;-1040,368;Inherit;False;Property;_ClipOuterNoise;ClipOuterNoise;13;0;Create;True;0;0;0;False;0;False;0;0;0;True;;Toggle;2;Key0;Key1;Create;True;True;All;9;1;FLOAT;0;False;0;FLOAT;0;False;2;FLOAT;0;False;3;FLOAT;0;False;4;FLOAT;0;False;5;FLOAT;0;False;6;FLOAT;0;False;7;FLOAT;0;False;8;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.GetLocalVarNode;90;-880,128;Inherit;False;52;Direction;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;13;-848,256;Inherit;False;Constant;_Float0;Float 0;1;0;Create;True;0;0;0;False;0;False;1;0;0;0;0;1;FLOAT;0
+Node;AmplifyShaderEditor.TFHCGrayscale;209;32,32;Inherit;False;0;1;0;FLOAT3;0,0,0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.SimpleMultiplyOpNode;222;-720,352;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;207;-144,352;Inherit;False;Property;_Alpha;Alpha;12;0;Create;True;0;0;0;False;0;False;1;0;0;1;0;1;FLOAT;0
+Node;AmplifyShaderEditor.OneMinusNode;211;224,48;Inherit;False;1;0;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.Compare;89;-512,208;Inherit;False;2;4;0;FLOAT;0;False;1;FLOAT;0.5;False;2;FLOAT;0;False;3;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.SimpleMultiplyOpNode;208;208,240;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;0;False;1;FLOAT;0
+Node;AmplifyShaderEditor.SimpleAddOpNode;212;448,16;Inherit;False;2;2;0;FLOAT;0;False;1;FLOAT;1;False;1;FLOAT;0
+Node;AmplifyShaderEditor.PowerNode;213;640,64;Inherit;False;False;2;0;FLOAT;0;False;1;FLOAT;1;False;1;FLOAT;0
+Node;AmplifyShaderEditor.PosVertexDataNode;118;-3296,-96;Inherit;False;0;0;5;FLOAT3;0;FLOAT;1;FLOAT;2;FLOAT;3;FLOAT;4
+Node;AmplifyShaderEditor.GetLocalVarNode;140;-416,-32;Inherit;False;138;Disturbance;1;0;OBJECT;;False;1;FLOAT;0
+Node;AmplifyShaderEditor.RangedFloatNode;141;-384,48;Inherit;False;Constant;_Float1;Float 1;7;0;Create;True;0;0;0;False;0;False;1;0;0;0;0;1;FLOAT;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;0;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ExtraPrePass;0;0;ExtraPrePass;5;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;True;1;1;False;;0;False;;0;1;False;;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;0;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;2;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ShadowCaster;0;2;ShadowCaster;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;True;False;False;False;False;0;False;;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=ShadowCaster;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;3;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthOnly;0;3;DepthOnly;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;True;True;False;False;False;0;False;;False;False;False;False;False;False;False;False;False;True;1;False;;False;False;True;1;LightMode=DepthOnly;False;False;0;;0;0;Standard;0;False;0
@@ -2347,7 +2540,7 @@ Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;6;0,0;Float;False;False;-1;
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;7;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;ScenePickingPass;0;7;ScenePickingPass;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;LightMode=Picking;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;8;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthNormals;0;8;DepthNormals;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=DepthNormalsOnly;False;False;0;;0;0;Standard;0;False;0
 Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;9;0,0;Float;False;False;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;1;New Amplify Shader;2992e84f91cbeb14eab234972e07ea9d;True;DepthNormalsOnly;0;9;DepthNormalsOnly;0;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;0;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Opaque=RenderType;Queue=Geometry=Queue=0;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;1;False;;True;3;False;;False;True;1;LightMode=DepthNormalsOnly;False;True;9;d3d11;metal;vulkan;xboxone;xboxseries;playstation;ps4;ps5;switch;0;;0;0;Standard;0;False;0
-Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1;48,-32;Float;False;True;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;13;GrowingSkybox;2992e84f91cbeb14eab234972e07ea9d;True;Forward;0;1;Forward;9;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;1;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Transparent=RenderType;Queue=Transparent=Queue=-10;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;True;1;5;False;;10;False;;1;1;False;;10;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;True;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=UniversalForwardOnly;False;False;0;;0;0;Standard;25;Surface;1;638876308657792124;  Blend;0;0;Two Sided;2;638876287169252707;Alpha Clipping;0;638876308025350302;  Use Shadow Threshold;0;0;Forward Only;0;0;Cast Shadows;1;0;Receive Shadows;1;0;GPU Instancing;1;0;LOD CrossFade;1;0;Built-in Fog;1;0;Meta Pass;0;0;Extra Pre Pass;0;0;Tessellation;0;0;  Phong;0;0;  Strength;0.5,False,;0;  Type;0;0;  Tess;16,False,;0;  Min;10,False,;0;  Max;25,False,;0;  Edge Length;16,False,;0;  Max Displacement;25,False,;0;Write Depth;0;0;  Early Z;0;0;Vertex Position,InvertActionOnDeselection;1;0;0;10;False;True;True;True;False;False;True;True;True;False;False;;False;0
+Node;AmplifyShaderEditor.TemplateMultiPassMasterNode;1;896,-160;Float;False;True;-1;3;UnityEditor.ShaderGraphUnlitGUI;0;13;GrowingSkybox;2992e84f91cbeb14eab234972e07ea9d;True;Forward;0;1;Forward;9;False;False;False;False;False;False;False;False;False;False;False;False;True;0;False;;False;True;1;False;;False;False;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;False;False;False;False;True;4;RenderPipeline=UniversalPipeline;RenderType=Transparent=RenderType;Queue=Transparent=Queue=-10;UniversalMaterialType=Unlit;True;5;True;12;all;0;False;True;1;5;False;;10;False;;1;1;False;;10;False;;False;False;False;False;False;False;False;False;False;False;False;False;False;False;True;True;True;True;True;0;False;;False;False;False;False;False;False;False;True;False;0;False;;255;False;;255;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;0;False;;True;True;1;False;;True;3;False;;True;True;0;False;;0;False;;True;1;LightMode=UniversalForwardOnly;False;False;0;;0;0;Standard;25;Surface;1;638876308657792124;  Blend;0;0;Two Sided;2;638876287169252707;Alpha Clipping;0;638876308025350302;  Use Shadow Threshold;0;0;Forward Only;0;0;Cast Shadows;1;0;Receive Shadows;1;0;GPU Instancing;1;0;LOD CrossFade;1;0;Built-in Fog;1;0;Meta Pass;0;0;Extra Pre Pass;0;0;Tessellation;0;0;  Phong;0;0;  Strength;0.5,False,;0;  Type;0;0;  Tess;16,False,;0;  Min;10,False,;0;  Max;25,False,;0;  Edge Length;16,False,;0;  Max Displacement;25,False,;0;Write Depth;0;0;  Early Z;0;0;Vertex Position,InvertActionOnDeselection;1;0;0;10;False;True;True;True;False;False;True;True;True;False;False;;False;0
 WireConnection;163;0;161;0
 WireConnection;165;0;163;0
 WireConnection;154;0;152;0
@@ -2401,59 +2594,73 @@ WireConnection;32;0;29;0
 WireConnection;30;0;32;0
 WireConnection;30;1;33;0
 WireConnection;35;0;30;0
+WireConnection;115;1;114;1
 WireConnection;39;0;35;0
 WireConnection;55;0;46;0
+WireConnection;119;0;115;0
+WireConnection;119;1;114;2
+WireConnection;79;0;119;0
+WireConnection;79;1;78;0
 WireConnection;54;0;56;0
 WireConnection;54;1;43;0
 WireConnection;64;0;63;0
+WireConnection;69;0;79;0
 WireConnection;59;0;54;0
 WireConnection;65;0;64;0
-WireConnection;49;0;56;0
-WireConnection;49;1;43;0
+WireConnection;70;0;69;0
 WireConnection;62;0;59;0
 WireConnection;62;1;65;0
-WireConnection;52;0;49;0
+WireConnection;71;0;70;0
 WireConnection;60;0;62;0
-WireConnection;85;0;61;0
-WireConnection;85;2;86;0
-WireConnection;85;3;88;0
-WireConnection;89;0;90;0
-WireConnection;89;2;13;0
-WireConnection;89;3;92;0
-WireConnection;76;0;77;0
-WireConnection;77;0;75;0
-WireConnection;77;1;73;0
-WireConnection;75;0;74;0
-WireConnection;75;1;67;2
+WireConnection;67;0;71;0
 WireConnection;74;0;67;0
 WireConnection;74;1;67;1
-WireConnection;67;0;71;0
-WireConnection;71;0;70;0
-WireConnection;70;0;69;0
-WireConnection;69;0;79;0
-WireConnection;79;0;118;0
-WireConnection;79;1;78;0
-WireConnection;119;0;115;0
-WireConnection;119;1;114;2
-WireConnection;115;1;114;1
+WireConnection;75;0;74;0
 WireConnection;104;0;97;0
+WireConnection;198;0;197;0
+WireConnection;196;0;190;0
+WireConnection;77;0;75;0
+WireConnection;77;1;73;0
 WireConnection;100;0;104;0
 WireConnection;100;1;98;5
-WireConnection;186;0;100;0
-WireConnection;189;0;193;0
 WireConnection;193;0;196;0
 WireConnection;193;1;198;0
 WireConnection;193;2;192;5
-WireConnection;198;0;197;0
-WireConnection;196;0;190;0
-WireConnection;82;0;99;0
+WireConnection;76;0;77;0
+WireConnection;186;0;100;0
+WireConnection;189;0;193;0
+WireConnection;49;0;56;0
+WireConnection;49;1;43;0
+WireConnection;95;0;93;0
+WireConnection;95;1;94;5
 WireConnection;99;0;10;5
 WireConnection;99;1;187;0
 WireConnection;99;2;194;0
-WireConnection;95;0;93;0
-WireConnection;95;1;94;5
+WireConnection;52;0;49;0
 WireConnection;83;0;95;0
+WireConnection;82;0;99;0
+WireConnection;85;0;61;0
+WireConnection;85;2;86;0
+WireConnection;85;3;88;0
+WireConnection;219;1;216;0
+WireConnection;214;0;85;0
+WireConnection;204;0;92;0
+WireConnection;204;1;219;0
+WireConnection;223;1;226;0
+WireConnection;223;0;221;0
+WireConnection;209;0;214;0
+WireConnection;222;0;223;0
+WireConnection;222;1;204;0
+WireConnection;211;0;209;0
+WireConnection;89;0;90;0
+WireConnection;89;2;13;0
+WireConnection;89;3;222;0
+WireConnection;208;0;89;0
+WireConnection;208;1;207;0
+WireConnection;212;0;211;0
+WireConnection;213;0;208;0
+WireConnection;213;1;212;0
 WireConnection;1;2;85;0
-WireConnection;1;3;89;0
+WireConnection;1;3;213;0
 ASEEND*/
-//CHKSM=2E3F6D0DDF90310C9D48065392D01F07D4BB27EF
+//CHKSM=8069FAC3D655D9E0056AD332D32715755B0ECF10
