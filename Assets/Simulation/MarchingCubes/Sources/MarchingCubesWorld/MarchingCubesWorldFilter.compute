@@ -1,0 +1,43 @@
+#pragma kernel CSMain
+
+#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+float3 _Dimension;
+Texture3D<float> _Input;
+RWTexture3D<float> _Output;
+
+Texture3D<float> _GaussianDistribution;
+int _FuzzyRadius;
+
+float GaussianBlur(int3 pixel)
+{
+    float density = 0;
+    for (int x = -_FuzzyRadius; x <= _FuzzyRadius; x++)
+        for (int y = -_FuzzyRadius; y <= _FuzzyRadius; y++)
+            for (int z = -_FuzzyRadius; z <= _FuzzyRadius; z++)
+            {
+                density += _Input[pixel + int3(x, y, z)] * _GaussianDistribution[int3(x, y, z) + _FuzzyRadius];
+            }
+    return density;
+}
+
+float MeanBlur_Internal(int3 pixel, float scale)
+{
+    float right = _Input[pixel + int3(scale, 0, 0)];
+    float left = _Input[pixel + int3(-scale, 0, 0)];
+    float up = _Input[pixel + int3(0, scale, 0)];
+    float down = _Input[pixel + int3(0, -scale, 0)];
+    float forward = _Input[pixel + int3(0, 0, scale)];
+    float back = _Input[pixel + int3(0, 0, -scale)];
+    return (right + left + up + down + forward + back) / 6;
+}
+float MeanBlur(int3 pixel)
+{
+    return (_Input[pixel] + MeanBlur_Internal(pixel, 1) + MeanBlur_Internal(pixel, 2)) / 3;
+}
+
+[numthreads(1,1,1)]
+void CSMain(uint3 id : SV_DispatchThreadID)
+{
+    _Output[id] = GaussianBlur(id);
+}
