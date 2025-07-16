@@ -79,17 +79,9 @@ Shader "Material/Skin"
 				return fragment;
 			}
 
-			float3 ComputeLight(Light light, float3 viewDir, float3 diffuse, float3 specular, float3 normal,
-			                    float roughness, float roughness2, float skin)
+			float3 ComputeCrustLight(Light light, float3 viewDir, float3 diffuse, float3 specular, float3 normal,
+			                         float roughness, float roughness2)
 			{
-				// if (skin > 0.5)
-				// {
-				// 	float NDotL = saturate(dot(normal, light.direction));
-				// 	float3 sss = tex2D(_SssMap, float2(min(NDotL, light.shadowAttenuation), 1));
-				// 	diffuse *= sss;
-				// 	return NDotL;
-				// }
-
 				float3 lightDir = light.direction;
 				float3 halfDir = SafeNormalize(lightDir + viewDir);
 				float HdotN = saturate(dot(halfDir, normal));
@@ -103,6 +95,38 @@ Shader "Material/Skin"
 				float D = roughness2 / pow(1 + HdotN * HdotN * (roughness2 - 1), 2);
 				float GF = 1 / (max(0.1h, HdotL * HdotL) * (roughness + 0.5));
 				float specularTerm = D * GF / 4;
+				float3 brdf = diffuse + specular * specularTerm;
+
+				return brdf * radiance;
+			}
+
+			float3 ComputeSkinLight(Light light, float3 viewDir, float3 diffuse, float3 specular, float3 normal,
+			                        float roughness, float roughness2)
+			{
+				float3 lightDir = light.direction;
+				float3 halfDir = SafeNormalize(lightDir + viewDir);
+				float HdotN = saturate(dot(halfDir, normal));
+				float HdotL = saturate(dot(halfDir, lightDir));
+				float HalfNdotL = saturate(dot(normal, lightDir) * 0.5 + 0.5);
+
+				// //漫射光
+				// float3 skinDiffuse = diffuse * tex2D(_SssMap, float2(HalfNdotL, 1));
+				// //镜射光
+				// float3 skinSpecular = 0;
+				// // skinSpecular += specular * pow(HdotN, 500 * smoothness) * 100;
+				// // skinSpecular += specular * pow(HdotN, 100 * smoothness) * 50;
+				//
+				// skinDiffuse = 0;
+				// return skinDiffuse + skinSpecular;
+
+				//辐射度量学
+				float3 irradiance = light.color * light.distanceAttenuation * light.shadowAttenuation;
+				float3 radiance = HalfNdotL * irradiance;
+
+				//双向反射分布函数（Cook-Torrance）
+				float D = roughness2 / pow(1 + HdotN * HdotN * (roughness2 - 1), 2);
+				float GF = 1 / (max(0.1, HdotL * HdotL) * (roughness + 0.5));
+				float specularTerm = (D * GF) / 4;
 				float3 brdf = diffuse + specular * specularTerm;
 
 				return brdf * radiance;
@@ -135,9 +159,6 @@ Shader "Material/Skin"
 				float occlusion = tex2D(_OcclusionMap, texcoord);
 				float skin = tex2D(_SkinMap, texcoord);
 
-				if (skin > 0.5)
-					smoothness = pow(smoothness, 2);
-
 				//解析PBR参数
 				float3 diffuse = lerp(albedo.rgb * 0.96, 0, metallic);
 				float3 specular = lerp(0.04, albedo.rgb, metallic);
@@ -147,28 +168,46 @@ Shader "Material/Skin"
 
 				float3 color = 0;
 
-				//直接光照
-				color += ComputeLight(
-					GetMainLight(TransformWorldToShadowCoord(fragment.positionWS)),
-					viewDir, diffuse, specular, normal, roughness, roughness2, skin
-				);
-				for (int i = GetAdditionalLightsCount(); i >= 0; i--)
+				if (skin > 0.5)
 				{
-					color += ComputeLight(
-						GetAdditionalLight(i, fragment.positionWS, 1),
-						viewDir, diffuse, specular, normal, roughness, roughness2, skin
+					//直接光照
+					color += ComputeSkinLight(
+						GetMainLight(TransformWorldToShadowCoord(fragment.positionWS)),
+						viewDir, diffuse, specular, normal, roughness, roughness2
 					);
+					for (int i = 0; i < GetAdditionalLightsCount(); i++)
+					{
+						color += ComputeSkinLight(
+							GetAdditionalLight(i, fragment.positionWS, 1),
+							viewDir, diffuse, specular, normal, roughness, roughness2
+						);
+					}
 				}
+				else
+				{
+					//直接光照
+					color += ComputeCrustLight(
+						GetMainLight(TransformWorldToShadowCoord(fragment.positionWS)),
+						viewDir, diffuse, specular, normal, roughness, roughness2
+					);
+					for (int i = 0; i < GetAdditionalLightsCount(); i++)
+					{
+						color += ComputeCrustLight(
+							GetAdditionalLight(i, fragment.positionWS, 1),
+							viewDir, diffuse, specular, normal, roughness, roughness2
+						);
+					}
 
-				//间接漫射光照
-				float3 envDiffuseRadiance = SampleSH(normal);
-				color += diffuse * envDiffuseRadiance * occlusion;
+					//间接漫射光照
+					float3 envDiffuseRadiance = SampleSH(normal);
+					color += diffuse * envDiffuseRadiance * occlusion;
 
-				//间接镜射光
-				float F = pow(1 - saturate(dot(normal, viewDir)), 4);
-				float3 envSpecular = lerp(specular, saturate(lerp(0.04, 1, metallic) + smoothness), F);
-				float3 envSpecularRadiance = GlossyEnvironmentReflection(reflect(-viewDir, normal), 1 - smoothness, 1);
-				color += envSpecular * envSpecularRadiance * occlusion / (roughness2 + 1);
+					//间接镜射光
+					float F = pow(1 - saturate(dot(normal, viewDir)), 4);
+					float3 envSpecular = lerp(specular, saturate(lerp(0.04, 1, metallic) + smoothness), F);
+					float3 envSpecularRadiance = GlossyEnvironmentReflection(reflect(-viewDir, normal), 1 - smoothness, 1);
+					color += envSpecular * envSpecularRadiance * occlusion / (roughness2 + 1);
+				}
 
 				return float4(color, 1);
 			}

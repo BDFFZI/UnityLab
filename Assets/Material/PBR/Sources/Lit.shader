@@ -135,7 +135,7 @@ Shader "Material/Lit"
 					GetMainLight(TransformWorldToShadowCoord(fragment.positionWS)),
 					viewDir, diffuse, specular, normal, roughness, roughness2
 				);
-				for (int i = GetAdditionalLightsCount(); i >= 0; i--)
+				for (int i = 0; i < GetAdditionalLightsCount(); i++)
 				{
 					color += ComputeLight(
 						GetAdditionalLight(i, fragment.positionWS, 1),
