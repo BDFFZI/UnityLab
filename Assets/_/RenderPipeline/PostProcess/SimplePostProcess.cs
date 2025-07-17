@@ -6,6 +6,7 @@ public class SimplePostProcess : PostProcess<SimplePostProcessPass>
     
     protected override void SetupPass(SimplePostProcessPass pass)
     {
+        base.SetupPass(pass);
         pass.Material = material;
     }
 }

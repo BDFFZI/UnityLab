@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-public class SimplePostProcessPass : PostProcessPass
+public class SimplePostProcessPass : RenderPass
 {
     public Material Material { get; set; }
 
@@ -27,7 +27,7 @@ public class SimplePostProcessPass : PostProcessPass
         CommandBufferPool.Release(commandBuffer);
     }
 
-    public override void Dispose()
+    public override void OnDestroy()
     {
         RTHandles.Release(tempTarget);
     }

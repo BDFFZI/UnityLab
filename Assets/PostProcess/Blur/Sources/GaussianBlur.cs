@@ -11,13 +11,14 @@ public class GaussianBlur : PostProcess<GaussianBlurPass>
 
     protected override void SetupPass(GaussianBlurPass pass)
     {
+        base.SetupPass(pass);
         pass.Downsample = downsample;
         pass.BlurIterations = blurIterations;
         pass.BlurRadius = blurRadius;
     }
 }
 
-public class GaussianBlurPass : PostProcessPass
+public class GaussianBlurPass : RenderPass
 {
     public int Downsample { get; set; }
     public int BlurIterations { get; set; }
@@ -54,10 +55,10 @@ public class GaussianBlurPass : PostProcessPass
         CommandBufferPool.Release(cmd);
     }
 
-    public override void Dispose()
+    public override void OnDestroy()
     {
         RTHandles.Release(rtHandle1);
         RTHandles.Release(rtHandle2);
-        base.Dispose();
+        base.OnDestroy();
     }
 }

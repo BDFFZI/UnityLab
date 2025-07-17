@@ -15,6 +15,7 @@ public class Bloom : PostProcess<BloomPass>
 
     protected override void SetupPass(BloomPass pass)
     {
+        base.SetupPass(pass);
         pass.Threshold = threshold;
         pass.Intensity = intensity;
         pass.Downsample = downsample;
@@ -23,7 +24,7 @@ public class Bloom : PostProcess<BloomPass>
     }
 }
 
-public class BloomPass : PostProcessPass
+public class BloomPass : RenderPass
 {
     public float Threshold { get; set; }
     public float Intensity { get; set; }

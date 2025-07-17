@@ -17,6 +17,7 @@ public class ColorAdjustment : PostProcess<SimplePostProcessPass>
 
     protected override void SetupPass(SimplePostProcessPass pass)
     {
+        base.SetupPass(pass);
         material.SetFloat("_Intensity", intensity);
         material.SetFloat("_Saturate", saturate);
         material.SetFloat("_Contrast", contrast);

@@ -13,6 +13,7 @@ public class DualBoxBlur : PostProcess<DualBoxBlurPass>
 
     protected override void SetupPass(DualBoxBlurPass pass)
     {
+        base.SetupPass(pass);
         pass.Downsample = downsample;
         pass.BlurIterations = blurIterations;
         pass.BlurRadius = blurRadius;
@@ -20,7 +21,7 @@ public class DualBoxBlur : PostProcess<DualBoxBlurPass>
     }
 }
 
-public class DualBoxBlurPass : PostProcessPass
+public class DualBoxBlurPass : RenderPass
 {
     static readonly int BlurRadiusID = Shader.PropertyToID("_BlurRadius");
 
@@ -104,7 +105,7 @@ public class DualBoxBlurPass : PostProcessPass
         ReleaseTempTextures();
     }
 
-    public override void Dispose()
+    public override void OnDestroy()
     {
         if (customRenderTarget != null)
             RTHandles.Release(customRenderTarget);

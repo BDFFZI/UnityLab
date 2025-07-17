@@ -17,6 +17,7 @@ public class BoxBlur : PostProcess<BoxBlurPass>
 
     protected override void SetupPass(BoxBlurPass pass)
     {
+        base.SetupPass(pass);
         pass.Downsample = downsample;
         pass.BlurIterations = blurIterations;
         pass.BlurRadius = blurRadius;
@@ -24,7 +25,7 @@ public class BoxBlur : PostProcess<BoxBlurPass>
     }
 }
 
-public class BoxBlurPass : PostProcessPass
+public class BoxBlurPass : RenderPass
 {
     public int Downsample { get; set; }
     public int BlurIterations { get; set; }
@@ -60,10 +61,10 @@ public class BoxBlurPass : PostProcessPass
         CommandBufferPool.Release(cmd);
     }
 
-    public override void Dispose()
+    public override void OnDestroy()
     {
         RTHandles.Release(rtHandle1);
         RTHandles.Release(rtHandle2);
-        base.Dispose();
+        base.OnDestroy();
     }
 }
