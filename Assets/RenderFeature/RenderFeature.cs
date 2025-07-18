@@ -1,43 +1,50 @@
 using UnityEngine;
-using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
-[RequireComponent(typeof(Camera))]
+public interface IRenderFeature
+{
+    RenderPass RenderPass { get; }
+    void OnRenderPass();
+}
+
+[RequireComponent(typeof(RenderFeatureSystem))]
 [ExecuteAlways]
-public class RenderFeature<TPass> : MonoBehaviour
+public class RenderFeature<TPass> : MonoBehaviour, IRenderFeature
     where TPass : RenderPass, new()
 {
-    public Camera Camera => camera;
+    public virtual RenderPassEvent RenderQueue => RenderPassEvent.AfterRenderingOpaques;
+    public virtual int RenderOrder => 0;
 
-    protected virtual void SetupPass(TPass pass) { }
+    public RenderPass RenderPass => renderPass;
+    public Camera Camera => renderFeatureSystem.Camera;
 
     protected virtual void OnEnable()
     {
-        camera = GetComponent<Camera>();
-        cameraData = GetComponent<UniversalAdditionalCameraData>();
+        renderFeatureSystem = GetComponent<RenderFeatureSystem>();
 
-        postProcessPass = new TPass();
-        postProcessPass.Awake();
-        RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
+        renderPass = new TPass();
+        renderPass.renderPassEvent = RenderQueue;
+        renderPass.Awake();
+        renderFeatureSystem.AddRenderPass(RenderOrder, this);
     }
 
     protected virtual void OnDisable()
     {
-        RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
-        postProcessPass.OnDestroy();
-        postProcessPass = null;
+        renderFeatureSystem.RemoveRenderPass(RenderOrder, this);
+        renderPass.OnDestroy();
+        renderPass = null;
     }
 
-    new Camera camera;
-    UniversalAdditionalCameraData cameraData;
-    TPass postProcessPass;
-
-    void OnBeginCameraRendering(ScriptableRenderContext renderContext, Camera camera)
+    protected virtual void SetupPass(TPass pass)
     {
-        if (camera != this.camera)
-            return;
+        //Null
+    }
 
-        SetupPass(postProcessPass);
-        cameraData.scriptableRenderer.EnqueuePass(postProcessPass);
+    RenderFeatureSystem renderFeatureSystem;
+    TPass renderPass;
+
+    public void OnRenderPass()
+    {
+        SetupPass(renderPass);
     }
 }

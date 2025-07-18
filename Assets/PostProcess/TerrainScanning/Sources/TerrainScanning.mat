@@ -13,7 +13,6 @@ Material:
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
   - _AUTOPLAY_ON
-  - _EDGELIGHT_ON
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
@@ -42,23 +41,38 @@ Material:
     - _Alpha: 0
     - _AlphaCutoff: 0.5
     - _AutoPlay: 1
-    - _DistanceThreshold: 21.3
-    - _EdgeLight: 1
+    - _Border: 0.1
+    - _BorderCenter: 0.2
+    - _BorderPower: 10
+    - _BorderThreshold: 0.6
+    - _Center: 0.5
+    - _ContourLineDensity: 4
+    - _ContourLineOffset: 3
+    - _ContourLineWidth: 0.2
+    - _DistanceThreshold: 20.35
+    - _EdgeLight: 0
+    - _EdgeLightCenter: 0
     - _EdgePower: 5
+    - _FlowThreshold: 0.5
+    - _LineDensity: 4
+    - _LineWidth: 0.2
     - _MaxDistance: 30
     - _Padding: 10
     - _QueueControl: 0
     - _QueueOffset: 0
     - _ReceiveShadows: 1
-    - _WireDensity: 2
-    - _WireThreshold: 0.75
+    - _WireDensity: 0
+    - _WireThreshold: 0
     - _c: 0
     m_Colors:
-    - _AutoPlayRange: {r: 10, g: 30, b: 0, a: 0}
+    - _AutoPlayRange: {r: 0, g: 30, b: 0, a: 0}
+    - _BorderColor: {r: 0, g: 2.73565, b: 6.3541446, a: 0}
     - _CameraPos: {r: -134.02357, g: 123.19359, b: -100.06256, a: 0}
-    - _CameraPosition: {r: 0, g: 14, b: -20, a: 0}
+    - _CameraPosition: {r: -5.785589, g: -0.56974065, b: -4.6901813, a: 0}
     - _Color: {r: 0, g: 0.5636335, b: 2.153008, a: 0}
-    - _EdgeColor: {r: 0, g: 32.83026, b: 47.937256, a: 0}
+    - _ContourLineColor: {r: 0, g: 3.9000833, b: 12.708289, a: 0}
+    - _EdgeColor: {r: 0, g: 11.543747, b: 12.708289, a: 0}
+    - _EdgeLightColor: {r: 0, g: 2.0903935, b: 6.3541465, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
-    - _FlowColor: {r: 0, g: 0.32906145, b: 1.8443025, a: 0}
+    - _FlowColor: {r: 0, g: 2.4685912, b: 7.1297398, a: 0}
   m_BuildTextureStacks: []

@@ -669,6 +669,7 @@ PlayerSettings:
   webGLPowerPreference: 2
   scriptingDefineSymbols:
     1: TERRAINPACKAGE_EXIST
+    Android: AMPLIFY_SHADER_EDITOR
     Standalone: TERRAINPACKAGE_EXIST;AMPLIFY_SHADER_EDITOR
   additionalCompilerArguments: {}
   platformArchitecture: {}

@@ -21,6 +21,7 @@ public class CameraNormalTexturePass : RenderPass
     static readonly int CameraNormalTextureID = Shader.PropertyToID("_CameraNormalTexture");
 
     RTHandle renderTarget;
+    RTHandle renderTargetDepth;
     Material material;
     List<ShaderTagId> shaderTags;
 
@@ -37,6 +38,7 @@ public class CameraNormalTexturePass : RenderPass
     public override void OnDestroy()
     {
         RTHandles.Release(renderTarget);
+        RTHandles.Release(renderTargetDepth);
 
         base.OnDestroy();
     }
@@ -46,12 +48,13 @@ public class CameraNormalTexturePass : RenderPass
         base.OnCameraSetup(cmd, ref renderingData);
 
         RenderTextureDescriptor renderTargetDescriptor = renderingData.cameraData.cameraTargetDescriptor;
-        renderTargetDescriptor.colorFormat = RenderTextureFormat.ARGB32;
         renderTargetDescriptor.depthBufferBits = 0;
-        RenderingUtils.ReAllocateIfNeeded(ref renderTarget, renderTargetDescriptor, name: "_CameraNormalTexture");
+        RenderingUtils.ReAllocateIfNeeded(ref renderTarget, renderTargetDescriptor, wrapMode: TextureWrapMode.Clamp, name: "_CameraNormalTexture");
+        renderTargetDescriptor.depthBufferBits = 16;
+        RenderingUtils.ReAllocateIfNeeded(ref renderTargetDepth, renderTargetDescriptor, name: "_CameraNormalTextureDepth");
 
-        ConfigureTarget(renderTarget, renderingData.cameraData.renderer.cameraDepthTargetHandle);
-        ConfigureClear(ClearFlag.All, Color.black);
+        ConfigureTarget(renderTarget, renderTargetDepth);
+        ConfigureClear(ClearFlag.All, Color.gray);
     }
 
     public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
