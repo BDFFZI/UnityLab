@@ -6,12 +6,21 @@ Shader "Material/Hair"
 		_Albedo("Albedo",Color)=(1,1,1,1)
 		_MetallicTex("MetallicMap",2D) = "white"{}
 		_Metallic("Metallic",Range(0.0,1.0)) = 0
-		_SmoothnessMap("SmoothnessMap",2D) = "white"{}
-		_Smoothness("Smoothness",Range(0.0,1.0)) = 1
 		[Normal]_NormalMap("NormalMap",2D) = "bump"{}
 		_OcclusionMap("OcclusionMap",2D) = "white"{}
 		_HeightMap("HeightMap",2D)="white"{}
 		_Height("Height",Range(0,0.08))=0.005
+		_ShiftMap("ShiftMap",2D) = "black"{}
+
+		_Glossiness("Glossiness",Float) = 100
+		_Intensity("Intensity",FLoat) = 10
+		_ShiftMapIntensity("ShiftMapIntensity",Range(0,2)) = 0
+		_Shift("Shift",Range(-1,1)) = 0
+
+		_Glossiness2("Glossiness2",Float) = 100
+		_Intensity2("Intensity2",FLoat) = 10
+		_ShiftMapIntensity2("ShiftMapIntensity2",Range(0,2)) = 0
+		_Shift2("Shift2",Range(-1,1)) = 0
 	}
 	SubShader
 	{
@@ -29,9 +38,9 @@ Shader "Material/Hair"
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-			#pragma multi_compile _MAIN_LIGHT_SHADOWS
-			#pragma multi_compile _ADDITIONAL_LIGHT_SHADOWS
-			#pragma multi_compile _ _SHADOWS_SOFT
+			#pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+			#pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
+			#pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
 
 			struct Vertex
 			{
@@ -51,17 +60,33 @@ Shader "Material/Hair"
 				float4 positionCS:SV_POSITION;
 			};
 
+			struct HairHighlight
+			{
+				float glossiness;
+				float intensity;
+				float shift;
+			};
+
 			float4 _AlbedoMap_ST;
 			sampler2D _AlbedoMap;
 			float4 _Albedo;
 			sampler2D _MetallicTex;
 			float _Metallic;
-			sampler2D _SmoothnessMap;
-			float _Smoothness;
 			sampler2D _NormalMap;
 			sampler2D _OcclusionMap;
 			sampler2D _HeightMap;
 			float _Height;
+
+			sampler2D _ShiftMap;
+			float4 _ShiftMap_ST;
+			float _Glossiness;
+			float _Intensity;
+			float _ShiftMapIntensity;
+			float _Shift;
+			float _Glossiness2;
+			float _Intensity2;
+			float _ShiftMapIntensity2;
+			float _Shift2;
 
 			Fragment VertexPass(Vertex vertex)
 			{
@@ -75,21 +100,28 @@ Shader "Material/Hair"
 				return fragment;
 			}
 
-			float3 ComputeLight(Light light, float3 viewDir, float3 diffuse, float3 specular, float3 normal, float roughness, float roughness2)
+			float3 ComputeLight(Light light, float3 viewDir,
+			                    float3 diffuse, float3 specular,
+			                    float3 normal, float3 binormal,
+			                    HairHighlight hairHighlights[2]
+			)
 			{
 				float3 lightDir = light.direction;
 				float3 halfDir = SafeNormalize(lightDir + viewDir);
-				float HdotN = saturate(dot(halfDir, normal));
-				float HdotL = saturate(dot(halfDir, lightDir));
+				float NdotL = saturate(dot(normal, lightDir) * 0.5 + 0.5);
 
 				//辐射度量学
 				float3 irradiance = light.color * light.distanceAttenuation * light.shadowAttenuation;
-				float3 radiance = saturate(dot(normal, lightDir)) * irradiance;
+				float3 radiance = NdotL * irradiance;
 
-				//双向反射分布函数（Cook-Torrance）
-				float D = roughness2 / pow(1 + HdotN * HdotN * (roughness2 - 1), 2);
-				float GF = 1 / (max(0.1h, HdotL * HdotL) * (roughness + 0.5));
-				float specularTerm = D * GF / 4;
+				float specularTerm = 0;
+				for (int i = 0; i < 2; i++)
+				{
+					HairHighlight highlight = hairHighlights[i];
+					float sinBH = sqrt(1 - pow(dot(normalize(binormal + normal * highlight.shift), halfDir), 2));
+					specularTerm += pow(sinBH, highlight.glossiness) * highlight.intensity;
+				}
+
 				float3 brdf = diffuse + specular * specularTerm;
 
 				return brdf * radiance;
@@ -117,47 +149,54 @@ Shader "Material/Hair"
 				//读取输入数据
 				float4 albedo = tex2D(_AlbedoMap, texcoord) * _Albedo;
 				float metallic = tex2D(_MetallicTex, texcoord) * _Metallic;
-				float smoothness = tex2D(_SmoothnessMap, texcoord) * _Smoothness;
 				float3 normalTS = UnpackNormal(tex2D(_NormalMap, texcoord));
 				float occlusion = tex2D(_OcclusionMap, texcoord);
+				float shiftMapValue = tex2D(_ShiftMap, texcoord * _ShiftMap_ST.xy + _ShiftMap_ST.zw) * 2 - 1;
 
 				//解析PBR参数
 				float3 diffuse = lerp(albedo.rgb * 0.96, 0, metallic);
 				float3 specular = lerp(0.04, albedo.rgb, metallic);
 				float3 normal = mul(tangentToWorld, normalTS);
-				float roughness = max(HALF_MIN_SQRT, pow(1 - smoothness, 2));
-				float roughness2 = roughness * roughness;
 
 				float3 color = 0;
+
+				HairHighlight hairHighlight[2];
+				hairHighlight[0].glossiness = _Glossiness;
+				hairHighlight[0].intensity = _Intensity;
+				hairHighlight[0].shift = shiftMapValue * _ShiftMapIntensity + _Shift;
+				hairHighlight[1].glossiness = _Glossiness2;
+				hairHighlight[1].intensity = _Intensity2;
+				hairHighlight[1].shift = shiftMapValue * _ShiftMapIntensity2 + _Shift2;
 
 				//直接光照
 				color += ComputeLight(
 					GetMainLight(TransformWorldToShadowCoord(fragment.positionWS)),
-					viewDir, diffuse, specular, normal, roughness, roughness2
+					viewDir, diffuse, specular, normal, binormalWS, hairHighlight
 				);
 				for (int i = 0; i < GetAdditionalLightsCount(); i++)
 				{
 					color += ComputeLight(
 						GetAdditionalLight(i, fragment.positionWS, 1),
-						viewDir, diffuse, specular, normal, roughness, roughness2
+						viewDir, diffuse, specular, normal, binormalWS, hairHighlight
 					);
 				}
 
 				//间接漫射光照
 				float3 envDiffuseRadiance = SampleSH(normal);
-				color += diffuse * envDiffuseRadiance * occlusion;
+				color += diffuse * envDiffuseRadiance * occlusion * shiftMapValue;
 
 				//间接镜射光
 				float F = pow(1 - saturate(dot(normal, viewDir)), 4);
-				float3 envSpecular = lerp(specular, saturate(lerp(0.04, 1, metallic) + smoothness), F);
-				float3 envSpecularRadiance = GlossyEnvironmentReflection(reflect(-viewDir, normal), 1 - smoothness, 1);
-				color += envSpecular * envSpecularRadiance * occlusion / (roughness2 + 1);
+				float3 envSpecular = lerp(specular, saturate(lerp(0.04, 1, metallic) + metallic), F);
+				float3 envSpecularRadiance = GlossyEnvironmentReflection(reflect(-viewDir, normal), 1 - metallic, 1);
+				color += envSpecular * envSpecularRadiance * occlusion * shiftMapValue;
 
 				return float4(color, 1);
 			}
 			ENDHLSL
 		}
 
+		UsePass "Universal Render Pipeline/Lit/DepthOnly"
 		UsePass "Universal Render Pipeline/Lit/ShadowCaster"
 	}
 }

@@ -23,15 +23,20 @@ Shader "Material/PBR"
 
 		Pass
 		{
+			Tags
+			{
+				"LightMode"="UniversalForward"
+			}
+
 			HLSLPROGRAM
 			#pragma vertex VertexPass
 			#pragma fragment FragmentPass
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-			#pragma multi_compile _MAIN_LIGHT_SHADOWS
-			#pragma multi_compile _ADDITIONAL_LIGHT_SHADOWS
-			#pragma multi_compile _ _SHADOWS_SOFT
+			#pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+			#pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
+			#pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
 
 			struct Vertex
 			{
@@ -158,6 +163,7 @@ Shader "Material/PBR"
 			ENDHLSL
 		}
 
+		UsePass "Universal Render Pipeline/Lit/DepthOnly"
 		UsePass "Universal Render Pipeline/Lit/ShadowCaster"
 	}
 }

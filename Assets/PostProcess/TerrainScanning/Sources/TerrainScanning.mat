@@ -44,12 +44,12 @@ Material:
     - _Border: 0.1
     - _BorderCenter: 0.2
     - _BorderPower: 10
-    - _BorderThreshold: 0.6
+    - _BorderThreshold: 0.9
     - _Center: 0.5
-    - _ContourLineDensity: 4
+    - _ContourLineDensity: 2.3
     - _ContourLineOffset: 3
-    - _ContourLineWidth: 0.2
-    - _DistanceThreshold: 20.35
+    - _ContourLineWidth: 0.03
+    - _DistanceThreshold: -0.64
     - _EdgeLight: 0
     - _EdgeLightCenter: 0
     - _EdgePower: 5
@@ -66,12 +66,12 @@ Material:
     - _c: 0
     m_Colors:
     - _AutoPlayRange: {r: 0, g: 30, b: 0, a: 0}
-    - _BorderColor: {r: 0, g: 2.73565, b: 6.3541446, a: 0}
+    - _BorderColor: {r: 0, g: 0.6839125, b: 1.5885361, a: 0}
     - _CameraPos: {r: -134.02357, g: 123.19359, b: -100.06256, a: 0}
     - _CameraPosition: {r: -5.785589, g: -0.56974065, b: -4.6901813, a: 0}
     - _Color: {r: 0, g: 0.5636335, b: 2.153008, a: 0}
-    - _ContourLineColor: {r: 0, g: 3.9000833, b: 12.708289, a: 0}
-    - _EdgeColor: {r: 0, g: 11.543747, b: 12.708289, a: 0}
+    - _ContourLineColor: {r: 0, g: 2.9620628, b: 6.354143, a: 0}
+    - _EdgeColor: {r: 0, g: 9.819826, b: 12.70829, a: 0}
     - _EdgeLightColor: {r: 0, g: 2.0903935, b: 6.3541465, a: 0}
     - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
     - _FlowColor: {r: 0, g: 2.4685912, b: 7.1297398, a: 0}

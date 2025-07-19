@@ -31,9 +31,9 @@ Shader "Material/Skin"
 
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 			#include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
-			#pragma multi_compile _MAIN_LIGHT_SHADOWS
-			#pragma multi_compile _ADDITIONAL_LIGHT_SHADOWS
-			#pragma multi_compile _ _SHADOWS_SOFT
+			#pragma multi_compile _ _MAIN_LIGHT_SHADOWS _MAIN_LIGHT_SHADOWS_CASCADE _MAIN_LIGHT_SHADOWS_SCREEN
+			#pragma multi_compile_fragment _ _ADDITIONAL_LIGHT_SHADOWS
+			#pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
 
 			struct Vertex
 			{
@@ -80,7 +80,7 @@ Shader "Material/Skin"
 			}
 
 			float3 ComputeLight(Light light, float3 viewDir, float3 diffuse, float3 specular, float3 normal,
-			                    float smoothness, float curvature)
+			                   float smoothness, float curvature)
 			{
 				float3 lightDir = light.direction;
 				float3 halfDir = SafeNormalize(lightDir + viewDir);
@@ -93,12 +93,12 @@ Shader "Material/Skin"
 				float3 irradiance = light.color * light.distanceAttenuation * light.shadowAttenuation;
 				float3 radiance = HalfNdotL * irradiance;
 				radiance *= tex2D(_SkinSssLUT, float2(HalfNdotL, curvature));
-				
+
 				smoothness = pow(smoothness, 0.5);
-				float specularTerm1 = pow(HdotN, 20 * smoothness) * 20 * smoothness;
+				float specularTerm1 = pow(HdotN, 40 * smoothness) * 20 * smoothness;
 				float specularTerm2 = pow(HdotN, 200 * smoothness) * 20 * smoothness;
 				float specularTerm = (specularTerm1 + specularTerm2) / 2;
-	
+
 				float3 brdf = diffuse + specular * specularTerm;
 
 				return brdf * radiance;
@@ -168,6 +168,7 @@ Shader "Material/Skin"
 			ENDHLSL
 		}
 
+		UsePass "Universal Render Pipeline/Lit/DepthOnly"
 		UsePass "Universal Render Pipeline/Lit/ShadowCaster"
 	}
 }
