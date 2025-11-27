@@ -1,0 +1,70 @@
+#pragma kernel ComputeTriangles
+
+#include "../MarchingCubesShader.hlsl"
+
+struct Vertex
+{
+    uint2 id;
+    float3 position;
+    float3 normal;
+};
+
+struct Triangle
+{
+    Vertex p0;
+    Vertex p1;
+    Vertex p2;
+};
+
+AppendStructuredBuffer<Triangle> _Triangles;
+
+[numthreads(1,1,1)]
+void ComputeTriangles(uint3 cubePointIndex : SV_DispatchThreadID)
+{
+    uint3 pointIndices[8];
+    float3 positions[8];
+    float3 normals[8];
+    float densities[8];
+    ComputePointInfos(cubePointIndex, pointIndices, positions, normals, densities);
+    int cubeType = ComputeCubeType(densities);
+
+    int edges[16] = triTable[cubeType];
+    for (int i = 0; edges[i] != -1; i += 3)
+    {
+        int edge0Vertex0 = edgeConnections[edges[i + 0]][0];
+        int edge0Vertex1 = edgeConnections[edges[i + 0]][1];
+        uint edge0Vertex0CubeIndex = PointIndexToCubeIndex(pointIndices[edge0Vertex0]);
+        uint edge0Vertex1CubeIndex = PointIndexToCubeIndex(pointIndices[edge0Vertex1]);
+        float edge0LerpRate = ComputeLerpRate(densities[edge0Vertex0], densities[edge0Vertex1]);
+        Vertex vertex0;
+        vertex0.id = uint2(min(edge0Vertex0CubeIndex, edge0Vertex1CubeIndex), max(edge0Vertex0CubeIndex, edge0Vertex1CubeIndex));
+        vertex0.position = lerp(positions[edge0Vertex0], positions[edge0Vertex1], edge0LerpRate);
+        vertex0.normal = normalize(lerp(normals[edge0Vertex0], normals[edge0Vertex1], edge0LerpRate));
+
+        int edge1Vertex0 = edgeConnections[edges[i + 1]][0];
+        int edge1Vertex1 = edgeConnections[edges[i + 1]][1];
+        uint edge1Vertex0CubeIndex = PointIndexToCubeIndex(pointIndices[edge1Vertex0]);
+        uint edge1Vertex1CubeIndex = PointIndexToCubeIndex(pointIndices[edge1Vertex1]);
+        float edge1LerpRate = ComputeLerpRate(densities[edge1Vertex0], densities[edge1Vertex1]);
+        Vertex vertex1;
+        vertex1.id = uint2(min(edge1Vertex0CubeIndex, edge1Vertex1CubeIndex), max(edge1Vertex0CubeIndex, edge1Vertex1CubeIndex));
+        vertex1.position = lerp(positions[edge1Vertex0], positions[edge1Vertex1], edge1LerpRate);
+        vertex1.normal = normalize(lerp(normals[edge1Vertex0], normals[edge1Vertex1], edge1LerpRate));
+
+        int edge2Vertex0 = edgeConnections[edges[i + 2]][0];
+        int edge2Vertex1 = edgeConnections[edges[i + 2]][1];
+        uint edge2Vertex0CubeIndex = PointIndexToCubeIndex(pointIndices[edge2Vertex0]);
+        uint edge2Vertex1CubeIndex = PointIndexToCubeIndex(pointIndices[edge2Vertex1]);
+        float edge2LerpRate = ComputeLerpRate(densities[edge2Vertex0], densities[edge2Vertex1]);
+        Vertex vertex2;
+        vertex2.id = uint2(min(edge2Vertex0CubeIndex, edge2Vertex1CubeIndex), max(edge2Vertex0CubeIndex, edge2Vertex1CubeIndex));
+        vertex2.position = lerp(positions[edge2Vertex0], positions[edge2Vertex1], edge2LerpRate);
+        vertex2.normal = normalize(lerp(normals[edge2Vertex0], normals[edge2Vertex1], edge2LerpRate));
+
+        Triangle tri;
+        tri.p0 = vertex0;
+        tri.p1 = vertex1;
+        tri.p2 = vertex2;
+        _Triangles.Append(tri);
+    }
+}

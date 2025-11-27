@@ -1,0 +1,3 @@
+[submodule "Assets/Plugins/BDXK"]
+	path = Assets/Plugins/BDXK
+	url = https://github.com/BDFFZI/UnityLibrary.git

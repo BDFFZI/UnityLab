@@ -1,0 +1,77 @@
+.panel {
+    padding-top: 30px;
+    padding-right: 30px;
+    padding-bottom: 30px;
+    padding-left: 30px;
+    flex-grow: 1;
+}
+
+.unity-text-element {
+    font-size: 13px;
+    -unity-text-outline-color: rgb(0, 0, 0);
+    -unity-text-outline-width: 0.7px;
+    -unity-font-style: bold;
+    color: rgb(255, 255, 255);
+    -unity-font: url("project://database/Assets/Plugins/BDXK/Runtime/Framework/TextMeshPro/Alibaba-PuHuiTi-Medium.ttf?fileID=12800000&guid=17cf39399b8528a46a7b78a0a4a4ddf9&type=3#Alibaba-PuHuiTi-Medium");
+    -unity-font-definition: initial;
+}
+
+.unity-foldout {
+    padding-left: 5px;
+    padding-right: 5px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.unity-slider {
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: stretch;
+    padding-top: 5px;
+    padding-right: 7px;
+    padding-bottom: 5px;
+    padding-left: 7px;
+    flex-direction: row;
+    justify-content: flex-start;
+    border-left-color: rgb(149, 149, 149);
+    border-right-color: rgb(149, 149, 149);
+    border-top-color: rgb(149, 149, 149);
+    border-bottom-color: rgb(149, 149, 149);
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+}
+
+.unity-slider > .unity-text-element {
+    width: 50%;
+    min-width: auto;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.unity-slider #unity-dragger {
+    transform-origin: left;
+    scale: 1 0.7;
+}
+
+.unity-button {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding-left: 5px;
+    padding-right: 5px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+}
+
+.unity-button:hover {
+    background-color: rgba(0, 0, 0, 0.7);
+}
+
+.unity-button:active {
+    background-color: rgba(0, 0, 0, 0.9);
+}

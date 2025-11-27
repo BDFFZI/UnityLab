@@ -1,0 +1,89 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: Canvas
+  m_Shader: {fileID: 4800000, guid: c5f36da15435a2948889158960c651c5, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 2999
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _Noise:
+        m_Texture: {fileID: 2800000, guid: 2bd89cb492eaa8844883376778f71f2a, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Noise1:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Noise2:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Noise3:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Noise4:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Noise5:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _Wave:
+        m_Texture: {fileID: 2800000, guid: b61b7bfd01e91b44597e7aed275f44c6, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _AlphaCutoff: 0.5
+    - _CullMode: 2
+    - _NoiseIntensity1: 0.005
+    - _NoiseIntensity2: 0.01
+    - _NoiseScale: 1
+    - _NoiseScale1: 8
+    - _NoiseScale2: 1
+    - _NoiseSpeed1: 0.8
+    - _NoiseSpeed2: -0.5
+    - _QueueControl: 0
+    - _QueueOffset: -1
+    - _ReceiveShadows: 1
+    - _WireTilling: 20
+    - _WireWidth: 0.1
+    m_Colors:
+    - _Background: {r: 0.21176457, g: 0.53655535, b: 0.6509804, a: 0.9019608}
+    - _BorderColor: {r: 0, g: 2.00292, b: 9.874542, a: 0}
+    - _Color: {r: 0.60693455, g: 1.7001555, b: 3.6226413, a: 0.14117648}
+    - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
+    - _MeshColor: {r: 0, g: 0, b: 0, a: 0}
+    - _WireColor: {r: 0, g: 0.06659266, b: 0.14150941, a: 0}
+  m_BuildTextureStacks: []

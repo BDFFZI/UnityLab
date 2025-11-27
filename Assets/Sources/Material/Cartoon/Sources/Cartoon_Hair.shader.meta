@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: a6771c8be0bfced4b9a471284ad8974d
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures:
+  - _BaseColorMap: {instanceID: 0}
+  - _MetalnessMap: {instanceID: 0}
+  - _SmoothnessMap: {instanceID: 0}
+  - _NormalMap: {instanceID: 0}
+  - _OcclusionMap: {instanceID: 0}
+  - _DiffuseRamp: {fileID: 2800000, guid: a1f7dec7928693e418c301a4caed98e3, type: 3}
+  - _SpecShiftMap: {fileID: 2800000, guid: 9fc9720a17dc1f34aad2d3dace93e4b1, type: 3}
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

@@ -1,0 +1,20 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements"
+         xsi="http://www.w3.org/2001/XMLSchema-instance" engine="UnityEngine.UIElements"
+         editor="UnityEditor.UIElements" noNamespaceSchemaLocation="../../../../../UIElementsSchema/UIElements.xsd"
+         editor-extension-mode="False">
+    <Style
+        src="project://database/Assets/Products/Material/Cartoon/Demo/UI/UICSS.uss?fileID=7433441132597879392&amp;guid=fbdf323b8ac102647a38b0648c0c521b&amp;type=3#UICSS" />
+    <ui:VisualElement class="panel">
+        <ui:Foldout text="动画状态" name="AnimationState" focusable="false" style="width: 176px;">
+            <ui:Button text="待机" focusable="false" />
+            <ui:Button text="奔跑" focusable="false" />
+            <ui:Button text="跳跃" focusable="false" />
+            <ui:Button text="卖萌" focusable="false" />
+            <ui:Button text="拜拜" focusable="false" />
+        </ui:Foldout>
+        <ui:Foldout text="灯光角度" name="LightDirection" focusable="false" style="width: 269px;">
+            <ui:Slider label="水平环绕" high-value="360" focusable="false" />
+            <ui:Slider label="垂直环绕" high-value="360" focusable="false" />
+        </ui:Foldout>
+    </ui:VisualElement>
+</ui:UXML>
