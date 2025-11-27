@@ -47,18 +47,40 @@ Shader "Unlit/NewUnlitShader"
 
             float4 FragmentPass(Fragment fragment) : SV_Target
             {
-                Light light = GetMainLight();
+                // Light lights[MAX_VISIBLE_LIGHTS];
+                // int linght
+
+                float metallic = 0.5;
+                float3 albedo = 1;
+
+                float3 diffuse = lerp(albedo * (1 - kDieletricSpec.rgb), 0, metallic);
+                float3 specular = lerp(kDieletricSpec.rgb, albedo, metallic);
+
+                float3 positionWS = fragment.positionWS;
+
+                float shadowMask = 1;
+                Light mainLight = GetMainLight(TransformWorldToShadowCoord(positionWS), positionWS, shadowMask);
+                for (int i = 0; i < GetAdditionalLightsCount(); i++)
+                    Light additionalLight = GetAdditionalLight(i, positionWS, shadowMask);
+                
                 float3 n = normalize(fragment.normalWS);
                 float3 l = light.direction;
                 float3 v = normalize(GetCameraPositionWS() - fragment.positionWS);
-                float a = max(HALF_MIN_SQRT, pow(1 - 1, 2));
+                float r = max(HALF_MIN_SQRT, pow(1 - 1, 2));
 
-                float diffuse = saturate(dot(n, l));
+                float3 diffuse = saturate(dot(n, l));
                 float3 h = normalize(v + l);
-                float specular = a * a / pow(pow(dot(h, n), 2) * (a * a - 1) + 1, 2);
+                float3 specular = r * r / pow(pow(dot(h, n), 2) * (r * r - 1) + 1, 2);
+                float3 envDiffuse = SampleSH(n);
+
+                float pr = 1 - 0.9; //直觉上的粗糙度（perceptualRoughness）
+                float mipLevel = pr * (1.7 - 0.7 * pr) * UNITY_SPECCUBE_LOD_STEPS;
+                float4 encodedIrradiance = unity_SpecCube0.SampleLevel(samplerunity_SpecCube0, reflect(-v, n), mipLevel);
+                float3 irradiance = DecodeHDREnvironment(encodedIrradiance, unity_SpecCube0_HDR);
+                float3 envSpecular = irradiance;
 
 
-                return diffuse + specular;
+                return float4(diffuse + specular + envDiffuse + envSpecular, 1);
 
                 float4 col = tex2D(_MainTex, fragment.uv);
                 return col;
