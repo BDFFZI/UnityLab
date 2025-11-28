@@ -50,32 +50,34 @@ Shader "Unlit/NewUnlitShader"
                 // Light lights[MAX_VISIBLE_LIGHTS];
                 // int linght
 
-                float metallic = 0.5;
+                //物体表面属性
                 float3 albedo = 1;
-
+                float metallic = 0.5;
+                float smoothness = 0.5;
+                float3 normal = fragment.normalWS;
+                //双向反射权重
                 float3 diffuse = lerp(albedo * (1 - kDieletricSpec.rgb), 0, metallic);
                 float3 specular = lerp(kDieletricSpec.rgb, albedo, metallic);
-
-                float3 positionWS = fragment.positionWS;
-
-                float shadowMask = 1;
-                Light mainLight = GetMainLight(TransformWorldToShadowCoord(positionWS), positionWS, shadowMask);
-                for (int i = 0; i < GetAdditionalLightsCount(); i++)
-                    Light additionalLight = GetAdditionalLight(i, positionWS, shadowMask);
-                
-                float3 n = normalize(fragment.normalWS);
+                //直接光照信息、辐照度、辐射率
+                Light light = GetMainLight();
+                float3 irradiance = light.color * light.distanceAttenuation * light.shadowAttenuation;
+                float3 radiance = irradiance * saturate(dot(normal, light.direction));
+                //向量信息
+                float3 n = normalize(normal);
                 float3 l = light.direction;
                 float3 v = normalize(GetCameraPositionWS() - fragment.positionWS);
-                float r = max(HALF_MIN_SQRT, pow(1 - 1, 2));
+                float3 h = normalize(v + l);
+                //双向反射系数
+                float3 diffuseTerm = 
 
                 float3 diffuse = saturate(dot(n, l));
-                float3 h = normalize(v + l);
                 float3 specular = r * r / pow(pow(dot(h, n), 2) * (r * r - 1) + 1, 2);
                 float3 envDiffuse = SampleSH(n);
 
                 float pr = 1 - 0.9; //直觉上的粗糙度（perceptualRoughness）
                 float mipLevel = pr * (1.7 - 0.7 * pr) * UNITY_SPECCUBE_LOD_STEPS;
-                float4 encodedIrradiance = unity_SpecCube0.SampleLevel(samplerunity_SpecCube0, reflect(-v, n), mipLevel);
+                float4 encodedIrradiance = unity_SpecCube0.
+                    SampleLevel(samplerunity_SpecCube0, reflect(-v, n), mipLevel);
                 float3 irradiance = DecodeHDREnvironment(encodedIrradiance, unity_SpecCube0_HDR);
                 float3 envSpecular = irradiance;
 
