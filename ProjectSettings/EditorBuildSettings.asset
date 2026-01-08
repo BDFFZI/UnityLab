@@ -6,9 +6,9 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Products/Effect/Flame/Demo/Demo.unity
+    path: Assets/Sources/Effect/Flame/Demo/Demo.unity
     guid: 59f13ae368a82c54eb0496c626af180e
-  - enabled: 1
+  - enabled: 0
     path: Assets/Tests/Test/KeChuang/Demo/Test.unity
     guid: 45a0d3933c2d6fa498444d848cdd0375
   m_configObjects:
