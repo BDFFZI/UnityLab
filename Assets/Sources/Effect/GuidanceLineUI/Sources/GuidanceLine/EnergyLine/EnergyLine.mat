@@ -1,0 +1,77 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: EnergyLine
+  m_Shader: {fileID: 4800000, guid: f5139d6b97067fe48850c057e6875a4b, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords:
+  - _RECEIVE_SHADOWS_OFF
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: 3001
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs:
+    - _TextureNoise:
+        m_Texture: {fileID: 2800000, guid: be80fa9d85c33d4408d026690782be0e, type: 3}
+        m_Scale: {x: 1, y: 2}
+        m_Offset: {x: 0.7, y: 0}
+    - unity_Lightmaps:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_LightmapsInd:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - unity_ShadowMasks:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    m_Ints: []
+    m_Floats:
+    - _Alpha: 1.5
+    - _AlphaCutoff: 0.5
+    - _ColorIntensity: 7
+    - _CustomTime: 0
+    - _Intensity: 5
+    - _NoiseSeed1: 0
+    - _QueueControl: 1
+    - _QueueOffset: 1
+    - _ReceiveShadows: 0
+    - _Speed: 2
+    - _Speed2: 2
+    - _SwayIntensity: 0.02
+    - _SwaySpeed: 0.23
+    - _TessEdgeLength: 16
+    - _TessMax: 25
+    - _TessMaxDisp: 25
+    - _TessMin: 10
+    - _TessPhongStrength: 0.5
+    - _TessValue: 16
+    - _TextureNoiseSpeed: 2
+    - _TimeSpeed: 0.3
+    - _WidthDisturbance: 0.4
+    m_Colors:
+    - _EdgeColor: {r: 74.96591, g: 27.935408, b: 46.525127, a: 1}
+    - _EmissionColor: {r: 1, g: 1, b: 1, a: 1}
+    - _LengthMask: {r: 0, g: 0.1, b: 0, a: 0}
+    - _NoiseScale: {r: 1, g: 0.5, b: 0, a: 0}
+    - _StartColor: {r: 8, g: 3.904765, b: 0, a: 1}
+    - _TextureColor: {r: 1, g: 0.44906092, b: 0, a: 1}
+    - _TextureColor2: {r: 1, g: 0.094705775, b: 0, a: 1}
+    - _TextureNoiseScale: {r: 1, g: 1, b: 0, a: 0}
+    - _WidthMask: {r: 0, g: 0.5, b: 0, a: 0}
+  m_BuildTextureStacks: []

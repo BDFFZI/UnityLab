@@ -185,7 +185,7 @@ MonoBehaviour:
       Data: 0
     - Name: processes
       Entry: 7
-      Data: 0|IProceduralTextureProcess[], Assembly-CSharp
+      Data: 0|IProceduralTextureProcess[], BDXK
     - Name: 
       Entry: 12
       Data: 1
@@ -549,7 +549,7 @@ MonoBehaviour:
       Data: 0
     - Name: processes
       Entry: 7
-      Data: 0|IProceduralTextureProcess[], Assembly-CSharp
+      Data: 0|IProceduralTextureProcess[], BDXK
     - Name: 
       Entry: 12
       Data: 0
@@ -629,7 +629,7 @@ MonoBehaviour:
   m_VolumeTrigger: {fileID: 0}
   m_VolumeFrameworkUpdateModeOption: 2
   m_RenderPostProcessing: 1
-  m_Antialiasing: 0
+  m_Antialiasing: 1
   m_AntialiasingQuality: 2
   m_StopNaN: 0
   m_Dithering: 0
@@ -838,7 +838,7 @@ MonoBehaviour:
       Data: 0
     - Name: processes
       Entry: 7
-      Data: 0|IProceduralTextureProcess[], Assembly-CSharp
+      Data: 0|IProceduralTextureProcess[], BDXK
     - Name: 
       Entry: 12
       Data: 1
@@ -872,9 +872,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   shader: {fileID: 4800000, guid: 9df76354ae37072498e99bfd59c53769, type: 3}
   blurIterations: 2
-  blurRadius: 3
+  blurRadius: 2
   spatialDeviation: 0.1
-  tonalDeviation: 0.01
+  tonalDeviation: 0.04
 --- !u!114 &961046674
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1021,7 +1021,7 @@ MonoBehaviour:
       Data: 0
     - Name: processes
       Entry: 7
-      Data: 0|IProceduralTextureProcess[], Assembly-CSharp
+      Data: 0|IProceduralTextureProcess[], BDXK
     - Name: 
       Entry: 12
       Data: 0
@@ -1173,7 +1173,7 @@ MonoBehaviour:
       Data: 0
     - Name: processes
       Entry: 7
-      Data: 0|IProceduralTextureProcess[], Assembly-CSharp
+      Data: 0|IProceduralTextureProcess[], BDXK
     - Name: 
       Entry: 12
       Data: 1
